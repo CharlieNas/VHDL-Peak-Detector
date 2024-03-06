@@ -96,6 +96,15 @@ BEGIN
         END CASE;
     END PROCESS;
 -----------------------------------------------------
+    sequencing : PROCESS(seqDone_reg, clk)
+    BEGIN 
+        IF CLK'EVENT AND CLK='1' THEN
+            IF seqDone_reg = '1' THEN
+                seqAvailable <= '1';
+            END IF;
+        END IF;
+    END PROCESS;
+ -----------------------------------------------------   
     combi_out: PROCESS(curState)
     BEGIN
         enA <= '0';
@@ -112,11 +121,12 @@ BEGIN
         END IF;
     END PROCESS;
   -----------------------------------------------------
-    seq_state: PROCESS (CLK, RESET)
+    seq_state: PROCESS (clk, reset)
     BEGIN
         IF CLK'EVENT AND CLK='1' THEN
             IF RESET = '1' THEN
                 curState <= INIT;
+                seqAvailable <= '0';
             ELSE
                 curState <= nextState;
             END IF;
