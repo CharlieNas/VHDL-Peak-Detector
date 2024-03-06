@@ -92,7 +92,7 @@ BEGIN
                     nextState <= L;
                 END IF;
             when OTHERS =>
-                nextState => INIT;
+                nextState <= INIT;
         END CASE;
     END PROCESS;
 -----------------------------------------------------
@@ -100,7 +100,7 @@ BEGIN
     BEGIN 
         IF CLK'EVENT AND CLK='1' THEN
             IF seqDone_reg = '1' THEN
-                seqAvailable <= '1';
+                seq_Available <= '1';
             END IF;
         END IF;
     END PROCESS;
@@ -126,7 +126,7 @@ BEGIN
         IF CLK'EVENT AND CLK='1' THEN
             IF RESET = '1' THEN
                 curState <= INIT;
-                seqAvailable <= '0';
+                seq_Available <= '0';
             ELSE
                 curState <= nextState;
             END IF;
@@ -134,4 +134,3 @@ BEGIN
     END PROCESS; 
   -----------------------------------------------------
 END arch; 
-
