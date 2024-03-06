@@ -32,9 +32,10 @@ architecture arch of cmdProc is
     type state_type is (INIT);
     signal curState, nextState: state_type; 
     signal R_rxnow
-begin
+BEGIN
+-----------------------------------------------------
     combi_nextState: process(curState)
-    begin
+    BEGIN
         case curState is
             when INIT =>
                 if cond1 then
@@ -45,34 +46,34 @@ begin
             when ... =>
             when OTHERS =>
                 nextState => INIT;
-        end case;
-    end process;
-
-end Behavioral;
-
-  combi_out: PROCESS(curState)
-  BEGIN
-    y <= '0'; -- assign default value
-    IF curState = S3 AND x_reg='1' AND c2 = "10000" THEN
-      y <= '1';
-    END IF;
-  END PROCESS; -- combi_output
+        END case;
+    END process;
+-----------------------------------------------------
+    combi_out: PROCESS(curState)
+    BEGIN
+        y <= '0'; -- assign default value
+        IF curState = S3 AND x_reg='1' AND c2 = "10000" THEN
+            y <= '1';
+        END IF;
+    END PROCESS; -- combi_output
   -----------------------------------------------------
-  combi_in: PROCESS(CLK)
-	  BEGIN
+    combi_in: PROCESS(CLK)
+    BEGIN
 	    IF CLK'event AND CLK='1' THEN
-	      
+	    
 	    END IF;
 	  END PROCESS;
   -----------------------------------------------------
-  seq_state: PROCESS (CLK, RESET)
-  BEGIN
-    IF CLK'EVENT AND CLK='1' THEN
-        IF RESET = '1' THEN
-            curState <= S0;
-        ELSE
-            curState <= nextState;
-    END IF;
-  END PROCESS; -- seq
+    seq_state: PROCESS (CLK, RESET)
+    BEGIN
+        IF CLK'EVENT AND CLK='1' THEN
+            IF RESET = '1' THEN
+                curState <= S0;
+            ELSE
+                curState <= nextState;
+            END IF;
+        END IF;
+    END PROCESS; 
   -----------------------------------------------------
-END; --
+END arch; 
+
