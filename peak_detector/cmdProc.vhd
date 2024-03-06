@@ -29,46 +29,94 @@ entity cmdProc is
 end cmdProc;
 
 architecture arch of cmdProc is
-    type state_type is (INIT);
+    type state_type is (INIT, VALID, A, P, L);
     signal curState, nextState: state_type; 
-    signal R_rxnow
+    signal enA, enP, enL: std_logic; 
+    signal doneA, doneP, doneL: std_logic;
+    signal seq_Available: std_logic;
+    signal rxnow_reg, txdone_reg, dataReady_reg, seqDone_reg: std_logic;
+    signal rxData_reg, byte_reg: std_logic_vector (7 downto 0);
+    signal maxIndex_reg: BCD_ARRAY_TYPE(2 downto 0);  
+    signal dataResults_reg: CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);
 BEGIN
 -----------------------------------------------------
-    combi_nextState: process(curState)
+    seq_input: PROCESS(CLK)
     BEGIN
-        case curState is
-            when INIT =>
-                if cond1 then
-                    ...
-                else
-                    ...
-                
-            when ... =>
+        IF CLK'EVENT AND CLK='1' THEN
+            rxnow_reg <= rxnow;
+            txdone_reg <= txdone;
+            dataReady_reg <= dataReady;
+            seqDone_reg <= seqDone;
+            rxData_reg <= rxData;
+            byte_reg <= byte;
+            maxIndex_reg <= maxIndex;
+            dataResults_reg <= dataResults;
+        END IF;
+    END PROCESS;
+-----------------------------------------------------       
+    combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneA, doneL, doneP)
+    BEGIN
+        CASE curState is
+            WHEN INIT =>
+                IF rxnow_reg = '1' THEN
+                    nextState <= VALID;
+                ELSE 
+                    nextState <= INIT;
+                END IF;
+            WHEN VALID =>
+                IF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN
+                    nextState <= A;
+                ELSIF (rxData_reg = "01010000" OR rxData_reg = "01110000") and seq_Available = '1' THEN
+                    nextState <= P;
+                ELSIF (rxData_reg = "01001100" OR rxData_reg = "01101100") and seq_Available = '1' THEN
+                    nextState <= L;
+                ELSE 
+                    nextState <= INIT;
+                END IF;
+            WHEN A => 
+                IF doneA = '1' THEN
+                    nextState <= INIT;
+                ELSE
+                    nextState <= A;
+                END IF;
+            WHEN P => 
+                IF doneP = '1' THEN
+                    nextState <= INIT;
+                ELSE
+                    nextState <= P;
+                END IF;
+            WHEN L => 
+                IF doneL = '1' THEN
+                    nextState <= INIT;
+                ELSE
+                    nextState <= L;
+                END IF;
             when OTHERS =>
                 nextState => INIT;
-        END case;
-    END process;
+        END CASE;
+    END PROCESS;
 -----------------------------------------------------
     combi_out: PROCESS(curState)
     BEGIN
-        y <= '0'; -- assign default value
-        IF curState = S3 AND x_reg='1' AND c2 = "10000" THEN
-            y <= '1';
+        enA <= '0';
+        enP <= '0';
+        enL <= '0';
+        IF curState = VALID THEN 
+            rxdone <= '1';
+        ELSIF curState = A THEN 
+            enA <= '1';
+        ELSIF curState = P THEN 
+            enP <= '1';
+        ELSIF curState = L THEN 
+            enL <= '1';
         END IF;
-    END PROCESS; -- combi_output
-  -----------------------------------------------------
-    combi_in: PROCESS(CLK)
-    BEGIN
-	    IF CLK'event AND CLK='1' THEN
-	    
-	    END IF;
-	  END PROCESS;
+    END PROCESS;
   -----------------------------------------------------
     seq_state: PROCESS (CLK, RESET)
     BEGIN
         IF CLK'EVENT AND CLK='1' THEN
             IF RESET = '1' THEN
-                curState <= S0;
+                curState <= INIT;
             ELSE
                 curState <= nextState;
             END IF;
