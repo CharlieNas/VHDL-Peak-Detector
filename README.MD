@@ -1,1 +1,1 @@
-# Peak Detector
+# Peak Detector (signed)
