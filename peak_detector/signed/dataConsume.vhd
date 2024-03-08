@@ -20,7 +20,7 @@ ENTITY dataConsume IS
 
     dataReady: out std_logic; -- set to high after the number is processes and the data processor is ready for a new number
     seqDone: out std_logic; -- when numWords has been processed and dataResult is ready
-    byte: out std_logic_vector(7 downto 0); -- bytes (numbers) to store in dataResults = the peak and the values souround it 
+    byte: out std_logic_vector(7 downto 0); -- send the number to the command processor after process the number (S1)
     maxIndex: out BCD_ARRAY_TYPE(2 downto 0); -- index of the largest number (peak) in dataResults
     dataResults: out CHAR_ARRAY_TYPE(0 to 6) -- array of 7 numbers (bytes) with the largest one in the middle
   )
@@ -29,6 +29,8 @@ END dataConsume;
 
 architecture Behavioral of dataConsume is
   -- SIGNALS
+  type state_type is (S0, S1, S2);
+  SIGNAL curr_state, next_state: state_type;
 
   begin
 
@@ -81,6 +83,19 @@ architecture Behavioral of dataConsume is
   end process;
 
   ----------------------------------------------------------------------------------------------------------------------------
+  NextState: process(curr_state)
+    begin
+      case curr_state is
+        when S0 =>
+          -- something
+        when S1 => 
+          -- something
+        when S2 =>
+          -- something
+        when others => 
+          -- something
+      end case;
+  end process;
 
 end Behavioral;
 
