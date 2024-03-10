@@ -1,3 +1,8 @@
+--Print.vhd
+--To use it set en signal to 1 and dataIn to the byte you are printing in the same clock cycle
+--Similar to tx and rx you then set en to 0 to prevent printing again after finishing
+--When it is done it will set finished to 1
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -29,14 +34,17 @@ BEGIN
     combi_nextState: PROCESS(curState, en_reg, txDone_reg)
     BEGIN
         case curState is
+	    -- IDLE: not in use, waits to be enabled
             when IDLE =>
                 IF en_reg = '1' THEN
                     nextState <= PRINT;
                 ELSE
                     nextState <= IDLE;
-                END IF;   
+                END IF; 
+	    -- PRINT: sends the byte to tx then waits for it to complete
             when PRINT =>
                 nextState <= WAITING;
+	    --WAITING: if txDone then idle and set finished to 1 else keep waiting
             when WAITING =>
                 IF txDone_reg = '1' THEN
                     nextState <= IDLE;
