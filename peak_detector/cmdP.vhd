@@ -88,7 +88,7 @@ BEGIN
     combi_in: PROCESS(clk)
     BEGIN
 	    IF clk'event AND clk='1' THEN
-	           en_reg <= en;
+	           enP_reg <= enP;
 	           
 	    END IF;
 	  END PROCESS;
@@ -143,4 +143,3 @@ BEGIN
     END PROCESS; 
   -----------------------------------------------------
 END arch;
-
