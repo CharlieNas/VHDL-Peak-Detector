@@ -38,8 +38,27 @@ architecture arch of cmdProc is
     signal rxData_reg, byte_reg: std_logic_vector (7 downto 0);
     signal maxIndex_reg: BCD_ARRAY_TYPE(2 downto 0);  
     signal dataResults_reg: CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);
+    
+    --Declare command components
+    COMPONENT cmdP IS
+        PORT (
+            clk:		in std_logic;                           --i
+            reset:		in std_logic;                           --i
+            en:         in std_logic;                           --i
+            peakByte:   in std_logic_vector (7 downto 0);       --i
+            maxIndex:   in BCD_ARRAY_TYPE(2 downto 0);          --i
+            txdone:		in std_logic;                           --i
+            txData:	    out std_logic_vector (7 downto 0);      --o
+            txnow:		out std_logic;                          --o
+            done:       out std_logic                           --o
+        );
+    END COMPONENT;
+    
 BEGIN
------------------------------------------------------
+    -----------------------------------------------------
+    --Create component entities
+    p1: cmdP port map (clk, reset, enP, dataResults(3), maxIndex_reg, txdone, txData, txnow, doneP);
+    -----------------------------------------------------
     seq_input: PROCESS(CLK)
     BEGIN
         IF CLK'EVENT AND CLK='1' THEN
@@ -53,7 +72,7 @@ BEGIN
             dataResults_reg <= dataResults;
         END IF;
     END PROCESS;
------------------------------------------------------       
+    -----------------------------------------------------       
     combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneA, doneL, doneP)
     BEGIN
         CASE curState is
@@ -95,7 +114,7 @@ BEGIN
                 nextState <= INIT;
         END CASE;
     END PROCESS;
------------------------------------------------------
+    -----------------------------------------------------
     sequencing : PROCESS(seqDone_reg, clk)
     BEGIN 
         IF CLK'EVENT AND CLK='1' THEN
@@ -104,7 +123,7 @@ BEGIN
             END IF;
         END IF;
     END PROCESS;
- -----------------------------------------------------   
+    -----------------------------------------------------   
     combi_out: PROCESS(curState)
     BEGIN
         enA <= '0';
@@ -112,15 +131,15 @@ BEGIN
         enL <= '0';
         IF curState = VALID THEN 
             rxdone <= '1';
-        ELSIF curState = A THEN 
+        ELSIF curState = A AND doneA = '0' THEN 
             enA <= '1';
-        ELSIF curState = P THEN 
+        ELSIF curState = P AND doneP = '0' THEN 
             enP <= '1';
-        ELSIF curState = L THEN 
+        ELSIF curState = L AND doneL = '0' THEN 
             enL <= '1';
         END IF;
     END PROCESS;
-  -----------------------------------------------------
+    -----------------------------------------------------
     seq_state: PROCESS (clk, reset)
     BEGIN
         IF CLK'EVENT AND CLK='1' THEN
@@ -132,5 +151,5 @@ BEGIN
             END IF;
         END IF;
     END PROCESS; 
-  -----------------------------------------------------
+    -----------------------------------------------------
 END arch; 
