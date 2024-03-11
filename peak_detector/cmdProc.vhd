@@ -58,6 +58,7 @@ BEGIN
     -----------------------------------------------------
     --Create component entities
     p1: cmdP port map (clk, reset, enP, dataResults(3), maxIndex_reg, txdone, txData, txnow, doneP);
+    p2: cmdL port map (clk, reset, enL, dataResults, txdone, txData, txnow, doneL);
     -----------------------------------------------------
     seq_input: PROCESS(CLK)
     BEGIN
