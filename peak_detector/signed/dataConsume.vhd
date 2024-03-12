@@ -57,7 +57,7 @@ architecture Behavioral of dataConsume is
     end if;
   end process;
 
-  
+
   DataStorage: process(clk)
   begin
       if rising_edge(clk) and dataReady = '1' then
@@ -108,6 +108,7 @@ architecture Behavioral of dataConsume is
   NextState: process(curr_state, start, counter)
     begin
       case curr_state is
+        -- IDLE STATE
         when S0 =>
           BCD2int_enable <= FALSE;
           seqDone <= '0';
@@ -127,7 +128,7 @@ architecture Behavioral of dataConsume is
           else
             next_state <= S0;
           end if;
-          
+        -- process data and find peak  
         when S1 => 
           if data_received_counter < numWords_int then
             -- activate and compare
@@ -139,7 +140,7 @@ architecture Behavioral of dataConsume is
           else
             next_state <= S2;
           end if;
-          
+        -- preapre output data  
         when S2 =>
           -- Compile dataResults and convert to BCD as needed
           -- Set seqDone high to indicate completion
