@@ -25,18 +25,25 @@ ENTITY dataConsume IS
     dataResults: out CHAR_ARRAY_TYPE(0 to 6) -- array of 7 numbers (bytes) with the largest one in the middle
   )
 END dataConsume;
------------------------------------------------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------------------------------------------------------------
+
 architecture Behavioral of dataConsume is
   -- SIGNALS
   type state_type is (S0, S1, S2);
-  SIGNAL curr_state, next_state: state_type;
+  signal curr_state, next_state: state_type;
+  signal counter: integer := 0;
+  signal max_value: std_logic_vector(7 downto 0) := (others => '0');
+  signal max_index, current_index: integer := 0;
 
-  SIGNAL binaryToBCD_en: bit; --enable signals
+  -- SIGNALS for compareData function
+  signal comparator_en, newPeak_en: BOOLEAN := FALSE;  -- comparator: initiate comparing A and B, newPeak: if B is greater than A, we assign a new peak
 
------------------------------------------------------------------------------------------------------------------------------------
-
+  -- Assume N is the max numWords, adjust accordingly
+  signal buffer: array(0 to N) of std_logic_vector(7 downto 0);
+  signal A, B: std_logic_vector(7 DOWNTO 0) := (OTHERS => 'X');
+  
   begin
-
   -- transform binary string to 3-bit BCD array
   BinaryToBCD: process()
   end process;
@@ -53,56 +60,68 @@ architecture Behavioral of dataConsume is
   CompareNumbers: process()
   end process;
 
-  ----------------------------------------------------------------------------------------------------------------------------
-  Temp1: process()
+  AddSorroundingValues: process()
+  end process;
+  -------------------------------------------------------Compare Values--------------------------------------------------------------
+  -- Compares two binary string to determine which is bigger
+  compareData: PROCESS(clk)
+  begin
+    if clk'event and clk = '1' then
+      IF comp_en = TRUE then
+      newPeak_en <= FALSE;
+
+      -- If B greater than A, assign B to be the new A
+      -- Otherwise, if A greater than B or A equal to B, keep A as peak
+      if B > A then
+        newPeak_en <= TRUE;
+      else
+        newPeak_en <= FALSE;
+    end if;
   end process;
 
-  Temp2: process()
+  -------------------------------------------------------State Machine--------------------------------------------------------------
+  StateMachine: process(clk, reset)
+  begin
+    if rising_edge(clk) then
+      if reset = '1' then
+        curr_state <= S0;
+      else
+        curr_state <= next_state;
+      end if;
+    end if;
   end process;
 
-  Temp3: process()
-  end process;
-
-  Temp4: process()
-  end process;
-
-  ----------------------------------------------------------------------------------------------------------------------------
-  PeakAdd1: process()
-  end process;
-
-  PeakAdd2: process()
-  end process;
-
-  PeakAdd3: process()
-  end process;
-  ----------------------------------------------------------------------------------------------------------------------------
-  PeakMinus1: process()
-  end process;
-
-  PeakMinus2: process()
-  end process;
-
-  PeakMinus3: process()
-  end process;
-
-  ----------------------------------------------------------------------------------------------------------------------------
   NextState: process(curr_state)
     begin
-      -- assign all signals as default here
-      -- assign all signals as default here
+      
       case curr_state is
         when S0 =>
-          if start = '1' THEN
-            next_state <= S1
-          else 
-          -- something
+          -- default values for signals
+          if start = '1' then
+            -- initialize variables
+            next_state <= S1;
+          else
+            next_state <= S0;
+          end if;
+          
         when S1 => 
-          -- something
+          if counter < BCDToInteger(numWords_bcd) then
+            -- Data processing logic here (e.g., compare, update counter)
+            -- Update max_value if current data > max_value
+            next_state <= S1;
+          else
+            next_state <= S2;
+          end if;
+          
         when S2 =>
-          -- something
+          -- Compile dataResults and convert to BCD as needed
+          -- Set seqDone high to indicate completion
+          next_state <= S0; -- Or stay in S2 depending on design
+          
         when others => 
-          -- something
+          next_state <= S0;
       end case;
+
   end process;
 
 end Behavioral;
