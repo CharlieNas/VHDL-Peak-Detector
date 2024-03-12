@@ -29,24 +29,31 @@ END dataConsume;
 ------------------------------------------------------------------------------------------------------------------------------------
 
 architecture Behavioral of dataConsume is
-  -- SIGNALS
   type state_type is (S0, S1, S2);
   signal curr_state, next_state: state_type;
-  signal counter: integer := 0;
-  signal max_value: std_logic_vector(7 downto 0) := (others => '0');
-  signal max_index, current_index: integer := 0;
 
-  -- Assume N is the max numWords, adjust accordingly
-  signal buffer: array(0 to N) of std_logic_vector(7 downto 0);
+  -- signals for BCDToInteger process
+  signal BCD2int_enable: boolean := FALSE;
+  signal numWords_int: integer := 0;
+  signal counter: integer := 0;
+
+
   signal A, B: std_logic_vector(7 DOWNTO 0) := (OTHERS => 'X');
   
   begin
-  -- transform binary string to 3-bit BCD array
-  BinaryToBCD: process()
+
+  -- transform 3-bit BCD array into an integer
+  BCDToInteger: process(clk, BCD2int_enable, numWords_bcd)
+  begin
+    if BCD2int_enable then
+      numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
+                      to_integer(unsigned(numWords_bcd(1))) * 10 + 
+                      to_integer(unsigned(numWords_bcd(0))); 
+    end if;
   end process;
 
-  -- transform 3-bit BCD array into a binary string
-  BCDToBinary: process()
+  -- transform binary string to 3-bit BCD array
+  BinaryToBCD: process()
   end process;
 
   -- store the values of the current max index 
@@ -76,16 +83,43 @@ architecture Behavioral of dataConsume is
     begin
       case curr_state is
         when S0 =>
-          -- default values for signals
+          BCD2int_enable <= FALSE
+          seqDone <= '0';
+          dataReady <= '0';                      
+          dataResults(0) <= (OTHERS => 'X');
+          dataResults(1) <= (OTHERS => 'X');
+          dataResults(2) <= (OTHERS => 'X');
+          dataResults(3) <= (OTHERS => 'X');
+          dataResults(4) <= (OTHERS => 'X');
+          dataResults(5) <= (OTHERS => 'X');
+          dataResults(6) <= (OTHERS => 'X');
+          maxIndex(2) <= (OTHERS => 'X');
+          maxIndex(1) <= (OTHERS => 'X');
+          maxIndex(0) <= (OTHERS => 'X');
+
           if start = '1' then
-            -- initialize variables
+            BCD2int_enable <= TRUE
+            seqDone <= '0';
+            dataReady <= '0';                          
+            dataResults(0) <= (OTHERS => 'X');
+            dataResults(1) <= (OTHERS => 'X');
+            dataResults(2) <= (OTHERS => 'X');
+            dataResults(3) <= (OTHERS => 'X');
+            dataResults(4) <= (OTHERS => 'X');
+            dataResults(5) <= (OTHERS => 'X');
+            dataResults(6) <= (OTHERS => 'X');
+            maxIndex(2) <= (OTHERS => 'X');
+            maxIndex(1) <= (OTHERS => 'X');
+            maxIndex(0) <= (OTHERS => 'X');
+
+            -- NEXT STATE
             next_state <= S1;
           else
             next_state <= S0;
           end if;
           
         when S1 => 
-          if counter < BCDToInteger(numWords_bcd) then
+          if counter < numWords_int then
             -- Data processing logic here (e.g., compare, update counter)
             -- Update max_value if current data > max_value
             next_state <= S1;
