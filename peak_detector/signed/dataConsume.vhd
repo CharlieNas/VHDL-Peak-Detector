@@ -25,12 +25,15 @@ ENTITY dataConsume IS
     dataResults: out CHAR_ARRAY_TYPE(0 to 6) -- array of 7 numbers (bytes) with the largest one in the middle
   )
 END dataConsume;
-------------------------------------------------------------------------------------------------------------------------------------
-
+-----------------------------------------------------------------------------------------------------------------------------------
 architecture Behavioral of dataConsume is
   -- SIGNALS
   type state_type is (S0, S1, S2);
   SIGNAL curr_state, next_state: state_type;
+
+  SIGNAL binaryToBCD_en: bit; --enable signals
+
+-----------------------------------------------------------------------------------------------------------------------------------
 
   begin
 
@@ -85,8 +88,13 @@ architecture Behavioral of dataConsume is
   ----------------------------------------------------------------------------------------------------------------------------
   NextState: process(curr_state)
     begin
+      -- assign all signals as default here
+      -- assign all signals as default here
       case curr_state is
         when S0 =>
+          if start = '1' THEN
+            next_state <= S1
+          else 
           -- something
         when S1 => 
           -- something
