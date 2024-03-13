@@ -16,7 +16,7 @@ ENTITY cmdP IS
         txdone:		in std_logic;                           --i
         txData:	    out std_logic_vector (7 downto 0);      --o
         txnow:		out std_logic;                          --o
-        done:       out std_logic                           --o
+        doneP:       out std_logic                           --o
     );
 END cmdP;
 
@@ -71,7 +71,7 @@ BEGIN
     -----------------------------------------------------
     combi_out: PROCESS(curState)
     BEGIN
-        done <= '0';
+        doneP <= '0';
         en <= '0';
         IF curState = PRINTING THEN
             en <= '1';
@@ -79,7 +79,7 @@ BEGIN
             b_index <= b_index + 1;
         ELSIF curState = WAITING AND finished = '1' THEN
             IF b_index = 7 THEN
-                done <= '1';
+                doneP <= '1';
                 b_index <= 0;
             END IF;
         END IF;

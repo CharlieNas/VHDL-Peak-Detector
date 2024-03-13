@@ -50,15 +50,28 @@ architecture arch of cmdProc is
             txdone:		in std_logic;                           --i
             txData:	    out std_logic_vector (7 downto 0);      --o
             txnow:		out std_logic;                          --o
-            done:       out std_logic                           --o
+            doneP:       out std_logic                           --o
         );
     END COMPONENT;
+
+    COMPONENT cmdL IS
+        PORT (  
+          clk:		    in std_logic;                           
+          reset:		in std_logic;       
+          enL:           in std_logic;
+          dataResults:  in CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);                          
+          txdone:		in std_logic;                           
+          txData:	    out std_logic_vector (7 downto 0);      
+          txnow:		out std_logic;
+          doneL:         out std_logic                     
+        );
+    END cmdL;
     
 BEGIN
     -----------------------------------------------------
     --Create component entities
-    p1: cmdP port map (clk, reset, enP, dataResults(3), maxIndex_reg, txdone, txData, txnow, doneP);
-    p2: cmdL port map (clk, reset, enL, dataResults, txdone, txData, txnow, doneL);
+    p1: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData, txnow, doneP);
+    p2: cmdL port map (clk, reset, enL, dataResults_reg, txdone_reg, txData, txnow, doneL);
     -----------------------------------------------------
     seq_input: PROCESS(CLK)
     BEGIN
