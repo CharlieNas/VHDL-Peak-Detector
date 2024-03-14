@@ -19,7 +19,7 @@ entity printer is
       reset:		in std_logic;                           --i
       txDone:		in std_logic;                           --i
       txData:	    out std_logic_vector (7 downto 0);      --o
-      txNow:		out std_logic;                          --o
+      txnow:		out std_logic;                          --o
       finished:     out std_logic                           --o
     );
 end printer;
@@ -56,10 +56,10 @@ BEGIN
     combi_out: PROCESS(curState, txDone_reg, dataIn_reg)
     BEGIN
         finished <= '0';
-        txNow <= '0';
+        txnow <= '0';
         txData <= dataIn_reg;
         IF curState = IDLE AND en_reg='1' THEN
-            txNow <= '1';
+            txnow <= '1';
         ELSIF curState = PRINTING AND txDone_reg = '1' THEN
             finished <= '1';
         END IF;

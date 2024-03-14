@@ -23,7 +23,7 @@ ARCHITECTURE behav OF tb_printer IS
   SIGNAL en, clk, reset, txDone: STD_LOGIC :='0';
   SIGNAL dataIn: STD_LOGIC_VECTOR(7 DOWNTO 0) :="00000000";
   -- outputs
-  SIGNAL txNow, finished: STD_LOGIC;
+  SIGNAL txnow, finished: STD_LOGIC;
   SIGNAL txData: STD_LOGIC_VECTOR(7 DOWNTO 0);
   -- test signal
   SIGNAL test: STD_LOGIC_VECTOR(7 DOWNTO 0);
@@ -49,11 +49,11 @@ BEGIN
   test_out: PROCESS(clk)
   BEGIN
     IF clk'EVENT AND clk='1' THEN
-      IF txNow = '1' THEN
+      IF txnow = '1' THEN
         test <= txData;
       END IF;
     END IF;
   END PROCESS;
    
-  t_printer: printer PORT MAP(en, dataIn, clk, reset, txDone, txData, txNow, finished);
+  t_printer: printer PORT MAP(en, dataIn, clk, reset, txDone, txData, txnow, finished);
 END behav;

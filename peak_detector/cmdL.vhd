@@ -25,7 +25,7 @@ architecture arch of cmdL is
     SIGNAL dataIn: std_logic_vector (7 downto 0);
     SIGNAL finished: std_logic;
     SIGNAL en: std_logic;
-    SIGNAL i: natural;
+    SIGNAL i: natural := 0;
 
     -----------------------------------------------------
     COMPONENT printer IS
@@ -50,7 +50,7 @@ architecture arch of cmdL is
         CASE curState IS
             WHEN IDLE =>
                 IF enL = '1' THEN 
-                    nextState <= CHAR2;
+                    nextState <= CHAR1;
                 ELSE 
                     nextState <= IDLE;
                 END IF;
@@ -79,15 +79,15 @@ architecture arch of cmdL is
         END case;
     END process;
     -----------------------------------------------------
-    combi_out: PROCESS(curState, i, finished)
-    VARIABLE halfByte : unsigned (7 downto 0);
+    combi_out: PROCESS(curState, nextState)
+    VARIABLE halfByte : unsigned (7 downto 0) := "00000000";
     BEGIN
         doneL <= '0';
         en <= '0';
         IF curState = CHECK AND i = 6 THEN
             doneL <= '1';
             i <= 0;
-        ELSIF curState = CHAR2 AND finished = '1' THEN
+        ELSIF curState = CHAR2 AND nextState = CHECK and finished = '1' THEN
             i <= i + 1;
         ELSIF curState = CHAR1 THEN
             halfByte(3 downto 0) := unsigned(dataResults(i)(7 downto 4));
