@@ -86,6 +86,7 @@ architecture arch of cmdL is
         en <= '0';
         IF curState = CHECK AND i = 7 THEN
             doneL <= '1';
+            dataIn <= "00000000";
         ELSIF curState = CHAR2 AND nextState = CHECK and finished = '1' THEN
             i <= i + 1;
         ELSIF curState = CHAR1 THEN
