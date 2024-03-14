@@ -67,7 +67,7 @@ architecture arch of cmdL is
                     nextState <= CHAR2;
                 END IF;
             WHEN CHECK =>
-                IF i = 6 THEN 
+                IF i = 7 THEN 
                     nextState <= IDLE;
                 ELSE 
                     nextState <= SPACE;
@@ -84,9 +84,8 @@ architecture arch of cmdL is
     BEGIN
         doneL <= '0';
         en <= '0';
-        IF curState = CHECK AND i = 6 THEN
+        IF curState = CHECK AND i = 7 THEN
             doneL <= '1';
-            i <= 0;
         ELSIF curState = CHAR2 AND nextState = CHECK and finished = '1' THEN
             i <= i + 1;
         ELSIF curState = CHAR1 THEN
