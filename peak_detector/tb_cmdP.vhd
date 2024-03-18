@@ -49,11 +49,11 @@ architecture testbench of tb_cmdP is
                                                           ("0111","0111","0000"));  --770 = 00110111, 00110111, 00110000
     
 begin
-    sig_peakByte <= byteSequence(6), byteSequence(5) after 145ns, byteSequence(4) after 275ns;
-    sig_maxIndex <= indexSequence(7), indexSequence(6) after 145ns, indexSequence(5) after 275ns;
+    sig_peakByte <= byteSequence(6), byteSequence(5) after 195ns, byteSequence(4) after 305ns;
+    sig_maxIndex <= indexSequence(7), indexSequence(6) after 195ns, indexSequence(5) after 305ns;
     clk <= NOT clk after 5 ns when now <200000 ms else clk;
-    reset <= '0', '1' after 2 ns, '0' after 15 ns, '1' after 200ns, '0' after 230ns;
-    sig_enP <= '0', '1' after 15 ns, '0' after 20 ns, '1' after 145ns, '0' after 150ns, '1' after 275ns, '0' after 280ns;
+    reset <= '0', '1' after 2 ns, '0' after 15 ns, '1' after 240ns, '0' after 260ns;
+    sig_enP <= '0', '1' after 15 ns, '0' after 20 ns, '1' after 195ns, '0' after 200ns, '1' after 305ns, '0' after 310ns;
     sig_txdone <= '1';
     cmdP1: cmdP
         port map (
