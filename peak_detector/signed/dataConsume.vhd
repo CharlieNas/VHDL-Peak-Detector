@@ -126,8 +126,10 @@ architecture Behavioral of dataConsume is
     begin
       
       case curr_state is
-        -- IDLE STATE
+        ------------------------------------------- S0 IDLE STATE -------------------------------------------
         when S0 =>
+          -- reset all signals
+          -- if start = 1 -> S1
           BCD2int_enable <= FALSE;
           seqDone <= '0';
           dataReady <= '0';                      
@@ -141,29 +143,45 @@ architecture Behavioral of dataConsume is
             dataResults <= (others => 'X');
             maxIndex <= (OTHERS => 'X');
 
-            -- NEXT STATE
             next_state <= S1;
           else
             next_state <= S0;
           end if;
-        -- process data and find peak  
+
+        ------------------------------------------- S1 Retrieving data from generator -------------------------------------------
         when S1 => 
           if data_received_counter < numWords_int then
-            -- activate and compare
+            -- transform numWords to int (BCDint_enable = 1 & wait until BCDint_done = 1)
+            -- flip ctrlOut
+            -- receive data
             -- update counter
-            -- update max_value 
-            -- update index
-            -- byte output process
-            next_state <= S1;
-          else
+            -- if ctrlIn flips -> S2
+            
             next_state <= S2;
           end if;
-        -- preapre output data  
-        when S2 =>
-          -- Compile dataResults and convert to BCD as needed
-          -- Set seqDone high to indicate completion
-          next_state <= S0; 
-        when others => 
+          ------------------------------------------- S2 Process data bytes -------------------------------------------
+          when S2 => 
+          if data_received_counter < numWords_int then
+            -- compare 2 bytes (current byte & current peak)
+            -- update current peak if current byte > current peak
+            -- update peak index
+            -- store data in buffer
+            -- send byte to command processor
+            -- set dataReady to 1
+            -- if count = numWords_int -> S3
+            if count = numWords_int then
+              next_state <= S3;
+          else
+            next_state <= S1;
+          end if;
+
+        ------------------------------------------- S3 Handle output -------------------------------------------
+        when S3 =>
+          -- Get the peak from buffer
+          -- convert the 7 values to BCD 
+          -- Put values into dataResults
+          -- Set seqDone = 1 to indicate completion
+
           next_state <= S0;
       end case;
 
