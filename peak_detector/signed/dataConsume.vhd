@@ -134,14 +134,14 @@ architecture Behavioral of dataConsume is
           seqDone <= '0';
           dataReady <= '0';                      
           dataResults <= (others => 'X');
-          maxIndex <= (OTHERS => 'X');
+          maxIndex <= (others => 'X');
 
           if start = '1' then
             BCD2int_enable <= TRUE;
             seqDone <= '0';
             dataReady <= '0';                          
             dataResults <= (others => 'X');
-            maxIndex <= (OTHERS => 'X');
+            maxIndex <= (others => 'X');
 
             next_state <= S1;
           else
