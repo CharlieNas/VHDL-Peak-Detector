@@ -29,65 +29,79 @@ entity cmdProc is
 end cmdProc;
 
 architecture arch of cmdProc is
-    type state_type is (INIT, VALID, A, P, L);
+    type state_type is (INIT, VALID, PRINT_A, PRINT_P, PRINT_L, A, P, L);
     signal curState, nextState: state_type; 
-    signal enA, enP, enL: std_logic; 
-    signal doneA, doneP, doneL: std_logic;
+    signal enA, enP, enL, enPr: std_logic; 
+    signal doneA, doneP, doneL, donePr: std_logic;
     signal seq_Available: std_logic;
     signal rxnow_reg, txdone_reg, dataReady_reg, seqDone_reg: std_logic;
-    signal rxData_reg, byte_reg: std_logic_vector (7 downto 0);
+    signal rxData_reg, byte_reg, dataIn: std_logic_vector (7 downto 0);
     signal maxIndex_reg: BCD_ARRAY_TYPE(2 downto 0);  
     signal dataResults_reg: CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);
     
     --Declare command components
+    COMPONENT printer is
+        port (
+          clk:		    in std_logic;                               --i
+          reset:		in std_logic;                               --i
+          en:           in std_logic;                               --i
+          dataIn:       in std_logic_vector (7 downto 0);           --i
+          txDone:		in std_logic;                               --i
+          txData:	    out std_logic_vector (7 downto 0);          --o
+          txnow:		out std_logic;                              --o
+          finished:     out std_logic                               --o
+        );
+    END COMPONENT printer;
+    
     COMPONENT cmdP IS
         PORT (
-            clk:		in std_logic;                           --i
-            reset:		in std_logic;                           --i
-            en:         in std_logic;                           --i
-            peakByte:   in std_logic_vector (7 downto 0);       --i
-            maxIndex:   in BCD_ARRAY_TYPE(2 downto 0);          --i
-            txdone:		in std_logic;                           --i
-            txData:	    out std_logic_vector (7 downto 0);      --o
-            txnow:		out std_logic;                          --o
-            doneP:       out std_logic                           --o
+            clk:		in std_logic;                               --i
+            reset:		in std_logic;                               --i
+            en:         in std_logic;                               --i
+            peakByte:   in std_logic_vector (7 downto 0);           --i
+            maxIndex:   in BCD_ARRAY_TYPE(2 downto 0);              --i
+            txdone:		in std_logic;                               --i
+            txData:	    out std_logic_vector (7 downto 0);          --o
+            txnow:		out std_logic;                              --o
+            doneP:      out std_logic                               --o
         );
-    END COMPONENT;
+    END COMPONENT cmdP;
 
     COMPONENT cmdL IS
         PORT (  
-          clk:		    in std_logic;                           
-          reset:		in std_logic;       
-          enL:           in std_logic;
-          dataResults:  in CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);                          
-          txdone:		in std_logic;                           
-          txData:	    out std_logic_vector (7 downto 0);      
-          txnow:		out std_logic;
-          doneL:         out std_logic                     
+          clk:		    in std_logic;                               --i
+          reset:		in std_logic;                               --i  
+          enL:          in std_logic;                               --i
+          dataResults:  in CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1); --i                       
+          txdone:		in std_logic;                               --i
+          txData:	    out std_logic_vector (7 downto 0);          --o
+          txnow:		out std_logic;                              --o    
+          doneL:        out std_logic                               --o
         );
-    END cmdL;
+    END COMPONENT cmdL;
     
 BEGIN
     -----------------------------------------------------
     --Create component entities
-    p1: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData, txnow, doneP);
-    p2: cmdL port map (clk, reset, enL, dataResults_reg, txdone_reg, txData, txnow, doneL);
+    print:     printer port map (clk, reset, enPr, dataIn, txDone, txData, txnow, donePr);
+    command_P: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData, txnow, doneP);
+    command_L: cmdL port map (clk, reset, enL, dataResults_reg, txdone_reg, txData, txnow, doneL);
     -----------------------------------------------------
     seq_input: PROCESS(CLK)
     BEGIN
         IF CLK'EVENT AND CLK='1' THEN
-            rxnow_reg <= rxnow;
-            txdone_reg <= txdone;
-            dataReady_reg <= dataReady;
-            seqDone_reg <= seqDone;
-            rxData_reg <= rxData;
-            byte_reg <= byte;
-            maxIndex_reg <= maxIndex;
-            dataResults_reg <= dataResults;
+            rxnow_reg <=        rxnow;
+            txdone_reg <=       txdone;
+            dataReady_reg <=    dataReady;
+            seqDone_reg <=      seqDone;
+            rxData_reg <=       rxData;
+            byte_reg <=         byte;
+            maxIndex_reg <=     maxIndex;
+            dataResults_reg <=  dataResults;
         END IF;
     END PROCESS;
     -----------------------------------------------------       
-    combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneA, doneL, doneP)
+    combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneA, doneL, doneP, donePr)
     BEGIN
         CASE curState is
             WHEN INIT =>
@@ -96,6 +110,7 @@ BEGIN
                 ELSE 
                     nextState <= INIT;
                 END IF;
+                
             WHEN VALID =>
                 IF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN
                     nextState <= A;
@@ -106,6 +121,20 @@ BEGIN
                 ELSE 
                     nextState <= INIT;
                 END IF;
+                
+            WHEN PRINT_A => 
+                IF donePr = '1' THEN
+                    nextState <= A;
+                END IF;
+            WHEN PRINT_P => 
+                IF donePr = '1' THEN
+                    nextState <= P;
+                END IF;
+            WHEN PRINT_L => 
+                IF donePr = '1' THEN
+                    nextState <= L;
+                END IF;
+                
             WHEN A => 
                 IF doneA = '1' THEN
                     nextState <= INIT;
@@ -124,6 +153,7 @@ BEGIN
                 ELSE
                     nextState <= L;
                 END IF;
+                
             when OTHERS =>
                 nextState <= INIT;
         END CASE;
@@ -143,14 +173,29 @@ BEGIN
         enA <= '0';
         enP <= '0';
         enL <= '0';
+        enPr <= '0';
         IF curState = VALID THEN 
             rxdone <= '1';
-        ELSIF curState = A AND doneA = '0' THEN 
+            dataIn <= rxData_reg;
+            -- Set printer enable high for 1 clock cycle if going into printing state
+            IF (rxData_reg = "01000001" OR rxData_reg = "01100001") OR 
+               ((rxData_reg = "01010000" OR rxData_reg = "01110000") and seq_Available = '1') OR
+               ((rxData_reg = "01001100" OR rxData_reg = "01101100") and seq_Available = '1') THEN
+               enPr <= '1';
+            END IF;
+        -- Set command enable signals high for 1 clock cycle if done printing
+        ELSIF curState = PRINT_A AND donePr = '1' THEN 
             enA <= '1';
-        ELSIF curState = P AND doneP = '0' THEN 
+        ELSIF curState = PRINT_P AND donePr = '1' THEN 
             enP <= '1';
-        ELSIF curState = L AND doneL = '0' THEN 
+        ELSIF curState = PRINT_L AND donePr = '1' THEN 
             enL <= '1';
+--        ELSIF curState = A AND doneA = '0' THEN 
+--            enA <= '1';
+--        ELSIF curState = P AND doneP = '0' THEN 
+--            enP <= '1';
+--        ELSIF curState = L AND doneL = '0' THEN 
+--            enL <= '1';
         END IF;
     END PROCESS;
     -----------------------------------------------------
