@@ -60,13 +60,17 @@ architecture Behavioral of dataConsume is
     end if;
   end process;
 
+  BinaryToBCD: process(clk)
+  begin
+  end process;
 
-  DataStorage: process(clk)
+
+  AddToBuffer: process(clk)
   begin
       if rising_edge(clk) and dataReady = '1' then
           binary_buffer(data_received_counter) <= signed(data);
       end if;
-  end process DataStorage;
+  end process;
 
 
   PeakDetection: process(clk)
@@ -77,8 +81,12 @@ architecture Behavioral of dataConsume is
               peak_index <= data_received_counter;
           end if;
       end if;
-  end process PeakDetection;
+  end process;
 
+  GetValuesFromBuffer: process(clk)
+  begin
+  end process;
+  
   -- -- Compares two binary string to determine which is bigger
   -- compareData: PROCESS(clk)
   -- begin
@@ -94,13 +102,12 @@ architecture Behavioral of dataConsume is
   --   end if;
   -- end process;
 
-
   CounterUpdate: process(clk)
   begin
       if rising_edge(clk) and dataReady = '1' then
           data_received_counter <= data_received_counter + 1;
       end if;
-  end process CounterUpdate;
+  end process;
 
 
   ByteOutput: process(clk)
@@ -108,7 +115,7 @@ architecture Behavioral of dataConsume is
       if rising_edge(clk) and dataReady = '1' then
           byte <= data; -- Output the processed data
       end if;
-  end process ByteOutput;
+  end process;
 
   -------------------------------------------------------State Machine--------------------------------------------------------------
   StateMachine: process(clk, reset)
@@ -188,5 +195,3 @@ architecture Behavioral of dataConsume is
   end process;
 
 end Behavioral;
-
-
