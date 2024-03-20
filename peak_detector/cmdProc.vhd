@@ -31,7 +31,7 @@ end cmdProc;
 architecture arch of cmdProc is
     type state_type is (INIT, VALID, PRINT_A, PRINT_P, PRINT_L, A, P, L, CARRIAGE_RETURN, LINE_FEED);
     signal curState, nextState: state_type; 
-    signal enA, enP, enL, enPr: std_logic; 
+    signal enA, enP, enL, en: std_logic; 
     signal doneA, doneP, doneL, finished: std_logic;
     signal seq_Available: std_logic;
     signal rxnow_reg, txdone_reg, dataReady_reg, seqDone_reg: std_logic;
@@ -84,7 +84,7 @@ architecture arch of cmdProc is
 BEGIN
     -----------------------------------------------------
     --Create component entities
-    print:     printer port map (clk, reset, enPr, dataIn, txDone, txData, txnow, finished);
+    print:     printer port map (clk, reset, en, dataIn, txDone, txData, txnow, finished);
     command_P: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData, txnow, doneP);
     command_L: cmdL port map (clk, reset, enL, dataResults_reg, txdone_reg, txData, txnow, doneL);
     -----------------------------------------------------
@@ -182,7 +182,7 @@ BEGIN
         enA <= '0';
         enP <= '0';
         enL <= '0';
-        enPr <= '0';
+        en <= '0';
         IF curState = VALID THEN 
             rxdone <= '1';
             dataIn <= rxData_reg;
@@ -190,7 +190,7 @@ BEGIN
             IF (rxData_reg = "01000001" OR rxData_reg = "01100001") OR 
                ((rxData_reg = "01010000" OR rxData_reg = "01110000") and seq_Available = '1') OR
                ((rxData_reg = "01001100" OR rxData_reg = "01101100") and seq_Available = '1') THEN
-               enPr <= '1';
+               en <= '1';
             END IF;
         -- Set command enable signals high for 1 clock cycle if done printing
         ELSIF curState = A THEN 
@@ -210,10 +210,10 @@ BEGIN
             direction_reg <= '0';
         ELSIF curState = CARRIAGE_RETURN THEN
             dataIn <= '00001101';
-            enPr <= '1';
+            en <= '1';
         ELSIF curState = LINE_FEED THEN
             dataIn <= '00001010';
-            enPr <= '1';
+            en <= '1';
         END IF;
     END PROCESS;
     -----------------------------------------------------
