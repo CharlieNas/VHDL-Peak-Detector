@@ -29,7 +29,7 @@ END dataConsume;
 ------------------------------------------------------------------------------------------------------------------------------------
 
 architecture Behavioral of dataConsume is
-  type state_type is (S0, S1, S2);
+  type state_type is (S0, S1, S2, S3);
   signal curr_state, next_state: state_type;
 
   signal BCD2int_enable: boolean := FALSE;
