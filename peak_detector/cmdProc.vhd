@@ -39,8 +39,7 @@ architecture arch of cmdProc is
     signal maxIndex_reg: BCD_ARRAY_TYPE(2 downto 0);  
     signal dataResults_reg: CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);
     signal route_reg, direction_reg: std_logic;
-    
-    --Declare command components
+    -----------------------------------------------------
     COMPONENT printer is
         port (
           clk:		    in std_logic;                               --i
@@ -53,7 +52,7 @@ architecture arch of cmdProc is
           finished:     out std_logic                               --o
         );
     END COMPONENT printer;
-    
+    -----------------------------------------------------
     COMPONENT cmdP IS
         PORT (
             clk:		in std_logic;                               --i
@@ -67,7 +66,7 @@ architecture arch of cmdProc is
             doneP:      out std_logic                               --o
         );
     END COMPONENT cmdP;
-
+    -----------------------------------------------------
     COMPONENT cmdL IS
         PORT (  
           clk:		    in std_logic;                               --i
@@ -80,10 +79,8 @@ architecture arch of cmdProc is
           doneL:        out std_logic                               --o
         );
     END COMPONENT cmdL;
-    
-BEGIN
     -----------------------------------------------------
-    --Create component entities
+BEGIN
     print:     printer port map (clk, reset, en, dataIn, txDone, txData, txnow, finished);
     command_P: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData, txnow, doneP);
     command_L: cmdL port map (clk, reset, enL, dataResults_reg, txdone_reg, txData, txnow, doneL);

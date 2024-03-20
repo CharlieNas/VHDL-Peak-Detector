@@ -23,16 +23,15 @@ END cmdP;
 ARCHITECTURE arch of cmdP IS
     TYPE state_type IS (IDLE, PRINTING, WAITING);
     SIGNAL curState, nextState: state_type;
-    
     TYPE ASCII_SEQUENCE IS array (0 to 7) of std_logic_vector (7 downto 0);
     SIGNAL fullData: ASCII_SEQUENCE;
-    
     SIGNAL enP_reg, en, finished: STD_LOGIC;
     SIGNAL b_index: natural := 0; --byte index
     SIGNAL peakByte_reg : STD_LOGIC_VECTOR (7 downto 0);
     SIGNAL maxIndex_reg: BCD_ARRAY_TYPE(2 downto 0);
     SIGNAL dataIn : STD_LOGIC_VECTOR (7 downto 0);
     SIGNAL finished_reg: STD_LOGIC;
+    -----------------------------------------------------
     COMPONENT printer IS
         PORT(
             en, clk, reset, txdone : in std_logic;
@@ -41,7 +40,7 @@ ARCHITECTURE arch of cmdP IS
             txnow, finished: out std_logic
             );
     END COMPONENT;
-    
+    -----------------------------------------------------
     -- NIB_TO_ASCII: Converts a 4-bit nibble representation of a hex digit to its 8-bit ASCII equivalent.
     FUNCTION NIB_TO_ASCII (
         v_in: IN STD_LOGIC_VECTOR(3 DOWNTO 0))
@@ -58,12 +57,9 @@ ARCHITECTURE arch of cmdP IS
         v_out := STD_LOGIC_VECTOR(v_temp);
         RETURN v_out;
     END NIB_TO_ASCII;
-    
+    -----------------------------------------------------
 BEGIN
-     -----------------------------------------------------
-
     pr: printer port map (en, clk, reset, txdone, dataIn, txData, txnow, finished);
-    
     -----------------------------------------------------
     combi_nextState: PROCESS(curState, enP_reg, finished_reg)
     BEGIN

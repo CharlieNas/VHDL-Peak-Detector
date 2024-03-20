@@ -26,7 +26,6 @@ architecture arch of cmdL is
     SIGNAL finished: std_logic;
     SIGNAL en: std_logic;
     SIGNAL i: natural := 0;
-
     -----------------------------------------------------
     COMPONENT printer IS
         port(
@@ -58,7 +57,7 @@ architecture arch of cmdL is
         RETURN v_out;
     END NIB_TO_ASCII;
     -----------------------------------------------------
-    BEGIN
+BEGIN
     p1: printer port map(en, dataIn, clk, reset, txdone, txData, txnow, finished);
     -----------------------------------------------------
     combi_nextState: PROCESS(curState, enL, finished, i)
