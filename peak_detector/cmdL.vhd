@@ -41,7 +41,23 @@ architecture arch of cmdL is
         );
     END COMPONENT;
     -----------------------------------------------------
-    
+    -- NIB_TO_ASCII: Converts a 4-bit nibble representation of a hex digit to its 8-bit ASCII equivalent.
+    FUNCTION NIB_TO_ASCII (
+        v_in: IN STD_LOGIC_VECTOR(3 DOWNTO 0))
+        RETURN STD_LOGIC_VECTOR IS
+        VARIABLE v_temp: UNSIGNED(7 DOWNTO 0);
+        VARIABLE v_out: STD_LOGIC_VECTOR(7 DOWNTO 0);
+    BEGIN
+        v_temp := "0000" & UNSIGNED(v_in);
+        IF v_temp >= 10 THEN
+            v_temp := v_temp + X"37"; -- Add 55, offset to A-Z
+        ELSE
+            v_temp := v_temp + X"30"; -- Add 48, offset to 0-9
+        END IF;
+        v_out := STD_LOGIC_VECTOR(v_temp);
+        RETURN v_out;
+    END NIB_TO_ASCII;
+    -----------------------------------------------------
     BEGIN
     p1: printer port map(en, dataIn, clk, reset, txdone, txData, txnow, finished);
     -----------------------------------------------------
@@ -90,21 +106,11 @@ architecture arch of cmdL is
         ELSIF curState = CHAR2 AND nextState = CHECK and finished = '1' THEN
             i <= i + 1;
         ELSIF curState = CHAR1 THEN
-            halfByte(3 downto 0) := unsigned(dataResults(i)(7 downto 4));
-            IF halfByte >= 10 THEN
-                dataIn <= std_logic_vector(halfByte + 55);
-            ELSE 
-                dataIn <= std_logic_vector(halfByte + 48);
+            dataIn <= NIB_TO_ASCII(dataResults(i)(7 downto 4));
             en <= '1';
-            END IF;
         ELSIF curState = CHAR2 THEN
-            halfByte(3 downto 0) := unsigned(dataResults(i)(3 downto 0));
-            IF halfByte >= 10 THEN
-                dataIn <= std_logic_vector(halfByte + 55);
-            ELSE 
-                dataIn <= std_logic_vector(halfByte + 48);
+            dataIn <= NIB_TO_ASCII(dataResults(i)(3 downto 0));
             en <= '1';
-            END IF;
         ELSIF curState = SPACE THEN
             dataIn <= "00100000";
             en <= '1';

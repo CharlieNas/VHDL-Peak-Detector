@@ -62,7 +62,7 @@ ARCHITECTURE arch of cmdP IS
 BEGIN
      -----------------------------------------------------
 
---    pr: printer port map (print_en, clk, reset, txdone, dataIn, txData, txnow, finished);
+    pr: printer port map (print_en, clk, reset, txdone, dataIn, txData, txnow, finished);
     
     -----------------------------------------------------
     combi_nextState: PROCESS(curState, enP_reg, finished_reg)

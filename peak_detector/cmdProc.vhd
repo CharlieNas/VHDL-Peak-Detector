@@ -29,7 +29,7 @@ entity cmdProc is
 end cmdProc;
 
 architecture arch of cmdProc is
-    type state_type is (INIT, VALID, PRINT_A, PRINT_P, PRINT_L, A, P, L);
+    type state_type is (INIT, VALID, PRINT_A, PRINT_P, PRINT_L, A, P, L, CARRIAGE_RETURN, LINE_FEED);
     signal curState, nextState: state_type; 
     signal enA, enP, enL, enPr: std_logic; 
     signal doneA, doneP, doneL, donePr: std_logic;
@@ -38,6 +38,7 @@ architecture arch of cmdProc is
     signal rxData_reg, byte_reg, dataIn: std_logic_vector (7 downto 0);
     signal maxIndex_reg: BCD_ARRAY_TYPE(2 downto 0);  
     signal dataResults_reg: CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);
+    signal route_reg, direction_reg: std_logic;
     
     --Declare command components
     COMPONENT printer is
@@ -109,52 +110,60 @@ BEGIN
                     nextState <= VALID;
                 ELSE 
                     nextState <= INIT;
-                END IF;
-                
+                END IF; 
             WHEN VALID =>
                 IF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN
-                    nextState <= A;
+                    nextState <= PRINT_A;
                 ELSIF (rxData_reg = "01010000" OR rxData_reg = "01110000") and seq_Available = '1' THEN
-                    nextState <= P;
+                    nextState <= PRINT_P;
                 ELSIF (rxData_reg = "01001100" OR rxData_reg = "01101100") and seq_Available = '1' THEN
-                    nextState <= L;
+                    nextState <= PRINT_L;
                 ELSE 
                     nextState <= INIT;
-                END IF;
-                
+                END IF; 
             WHEN PRINT_A => 
                 IF donePr = '1' THEN
                     nextState <= A;
                 END IF;
             WHEN PRINT_P => 
                 IF donePr = '1' THEN
-                    nextState <= P;
+                    nextState <= CARRIAGE_RETURN;
                 END IF;
             WHEN PRINT_L => 
                 IF donePr = '1' THEN
-                    nextState <= L;
+                    nextState <= CARRIAGE_RETURN;
                 END IF;
-                
+            WHEN CARRIAGE_RETURN =>
+                IF donePr = '1' THEN
+                    nextState <= LINE_FEED;
+                END IF;
+            WHEN LINE_FEED =>
+                IF donePr = '1' AND route_reg = '0' AND direction_reg = '0' THEN
+                    nextState <= P;
+                ELSIF donePr = '1' AND route_reg = '1' AND direction_reg = '0' THEN
+                    nextState <= L;
+                ELSIF donePr = '1' AND direction_reg = '1' THEN
+                    nextState <= INIT;
+                END IF;
             WHEN A => 
                 IF doneA = '1' THEN
-                    nextState <= INIT;
+                    nextState <= CARRIAGE_RETURN;
                 ELSE
                     nextState <= A;
                 END IF;
             WHEN P => 
                 IF doneP = '1' THEN
-                    nextState <= INIT;
+                    nextState <= CARRIAGE_RETURN;
                 ELSE
                     nextState <= P;
                 END IF;
             WHEN L => 
                 IF doneL = '1' THEN
-                    nextState <= INIT;
+                    nextState <= CARRIAGE_RETURN;
                 ELSE
                     nextState <= L;
                 END IF;
-                
-            when OTHERS =>
+            WHEN OTHERS =>
                 nextState <= INIT;
         END CASE;
     END PROCESS;
@@ -184,18 +193,27 @@ BEGIN
                enPr <= '1';
             END IF;
         -- Set command enable signals high for 1 clock cycle if done printing
-        ELSIF curState = PRINT_A AND donePr = '1' THEN 
+        ELSIF curState = A THEN 
             enA <= '1';
-        ELSIF curState = PRINT_P AND donePr = '1' THEN 
+            direction_reg <= '1';
+        ELSIF curState = P THEN 
             enP <= '1';
-        ELSIF curState = PRINT_L AND donePr = '1' THEN 
+            direction_reg <= '1';
+        ELSIF curState = L THEN 
             enL <= '1';
---        ELSIF curState = A AND doneA = '0' THEN 
---            enA <= '1';
---        ELSIF curState = P AND doneP = '0' THEN 
---            enP <= '1';
---        ELSIF curState = L AND doneL = '0' THEN 
---            enL <= '1';
+            direction_reg <= '1';
+        ELSIF curState = PRINT_P THEN
+            route_reg <= '0';
+            direction_reg <= '0';
+        ELSIF curState = PRINT_L THEN
+            route_reg <= '1';
+            direction_reg <= '0';
+        ELSIF curState = CARRIAGE_RETURN THEN
+            dataIn <= '00001101';
+            enPr <= '1';
+        ELSIF curState = LINE_FEED THEN
+            dataIn <= '00001010';
+            enPr <= '1';
         END IF;
     END PROCESS;
     -----------------------------------------------------
