@@ -15,7 +15,7 @@ architecture testbench of tb_cmdP is
         port (
             clk:		in std_logic;                           --i
             reset:		in std_logic;                           --i
-            en:         in std_logic;                           --i
+            enP:         in std_logic;                           --i
             peakByte:   in std_logic_vector (7 downto 0);       --i
             maxIndex:   in BCD_ARRAY_TYPE(2 downto 0);          --i
             txdone:		in std_logic;                           --i
@@ -59,7 +59,7 @@ begin
         port map (
             clk => clk,
             reset => reset,
-            en => sig_enP,
+            enP => sig_enP,
             peakByte => sig_peakByte,
             maxIndex => sig_maxIndex,
             txdone => sig_txdone,
