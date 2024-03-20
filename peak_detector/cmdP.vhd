@@ -10,7 +10,7 @@ ENTITY cmdP IS
     PORT (
         clk:		in std_logic;                           --i
         reset:		in std_logic;                           --i
-        en:         in std_logic;                           --i
+        enP:         in std_logic;                           --i
         peakByte:   in std_logic_vector (7 downto 0);       --i
         maxIndex:   in BCD_ARRAY_TYPE(2 downto 0);          --i
         txdone:		in std_logic;                           --i
@@ -104,7 +104,7 @@ BEGIN
     combi_in: PROCESS(clk)
     BEGIN
 	    IF clk'event AND clk='1' THEN
-	           enP_reg <= en;
+	           enP_reg <= enP;
 	           peakByte_reg <= peakByte;
 	           maxIndex_reg <= maxIndex;
 	           finished_reg <= txdone;

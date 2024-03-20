@@ -4,7 +4,7 @@ use ieee.numeric_std.all;
 use work.common_pack.all;
 library UNISIM;
 use UNISIM.VCOMPONENTS.ALL;
-use UNISIM.VPKG.ALL;
+-- use UNISIM.VPKG.ALL;
 
 entity cmdProc is
     port (
@@ -206,10 +206,10 @@ BEGIN
             route_reg <= '1';
             direction_reg <= '0';
         ELSIF curState = CARRIAGE_RETURN THEN
-            dataIn <= '00001101';
+            dataIn <= "00001101";
             en <= '1';
         ELSIF curState = LINE_FEED THEN
-            dataIn <= '00001010';
+            dataIn <= "00001010";
             en <= '1';
         END IF;
     END PROCESS;
