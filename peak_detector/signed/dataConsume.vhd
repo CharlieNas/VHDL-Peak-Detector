@@ -29,25 +29,16 @@ END dataConsume;
 ------------------------------------------------------------------------------------------------------------------------------------
 
 architecture Behavioral of dataConsume is
-  type state_type is (S0, S1, S2);
+  type state_type is (S0, S1, S2, S3);
   signal curr_state, next_state: state_type;
 
-  -- signals for BCDToInteger process
   signal BCD2int_enable: boolean := FALSE;
   signal numWords_int: integer := 0;
-  signal data_received_counter: integer := 0;
+  signal counter: integer := 0;
 
   signal peak_value: signed(7 downto 0) := (others => '0');
-  signal peak_index: integer := 0;  
-  signal binary_buffer: array(0 to 499) of signed(7 downto 0);
-  signal data_ready: std_logic := '0';
-
-  -- -- SIGNALS for compareData function FOR CHARLIE IMPLEMENTATION
-  -- signal comparator_en, newPeak_en: BOOLEAN := FALSE;  -- comparator: initiate comparing A and B, newPeak: if B is greater than A, we assign a new peak
-
-
-  -- signals 
-  signal A, B: std_logic_vector(7 DOWNTO 0) := (OTHERS => 'X');
+  signal peak_index: integer := 0;
+  signal buffer: array(0 to 999) of std_logic_vector(7 downto 0);
   
   begin
   -- transform 3-bit BCD array into an integer
@@ -68,7 +59,7 @@ architecture Behavioral of dataConsume is
   AddToBuffer: process(clk)
   begin
       if rising_edge(clk) and dataReady = '1' then
-          binary_buffer(data_received_counter) <= signed(data);
+          buffer(counter) <= signed(data);
       end if;
   end process;
 
@@ -76,9 +67,9 @@ architecture Behavioral of dataConsume is
   PeakDetection: process(clk)
   begin
       if rising_edge(clk) and dataReady = '1' then
-          if data_received_counter = 0 or signed(data) > peak_value then
+          if counter = 0 or signed(data) > peak_value then
               peak_value <= signed(data);
-              peak_index <= data_received_counter;
+              peak_index <= counter;
           end if;
       end if;
   end process;
@@ -105,7 +96,7 @@ architecture Behavioral of dataConsume is
   CounterUpdate: process(clk)
   begin
       if rising_edge(clk) and dataReady = '1' then
-          data_received_counter <= data_received_counter + 1;
+          counter <= counter + 1;
       end if;
   end process;
 
@@ -157,7 +148,7 @@ architecture Behavioral of dataConsume is
 
         ------------------------------------------- S1 Retrieving data from generator -------------------------------------------
         when S1 => 
-          if data_received_counter < numWords_int then
+          if counter < numWords_int then
             -- transform numWords to int (BCDint_enable = 1 & wait until BCDint_done = 1)
             -- flip ctrlOut
             -- receive data
@@ -168,7 +159,7 @@ architecture Behavioral of dataConsume is
           end if;
           ------------------------------------------- S2 Process data bytes -------------------------------------------
           when S2 => 
-          if data_received_counter < numWords_int then
+          if counter < numWords_int then
             -- compare 2 bytes (current byte & current peak)
             -- update current peak if current byte > current peak
             -- update peak index
@@ -176,7 +167,7 @@ architecture Behavioral of dataConsume is
             -- send byte to command processor
             -- set dataReady to 1
             -- if count = numWords_int -> S3
-            if count = numWords_int then
+            if counter = numWords_int then
               next_state <= S3;
           else
             next_state <= S1;
