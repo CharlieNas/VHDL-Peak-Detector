@@ -27,7 +27,7 @@ ARCHITECTURE arch of cmdP IS
     TYPE ASCII_SEQUENCE IS array (0 to 7) of std_logic_vector (7 downto 0);
     SIGNAL fullData: ASCII_SEQUENCE;
     
-    SIGNAL enP_reg, print_en, finished: STD_LOGIC;
+    SIGNAL enP_reg, en, finished: STD_LOGIC;
     SIGNAL b_index: natural := 0; --byte index
     SIGNAL peakByte_reg : STD_LOGIC_VECTOR (7 downto 0);
     SIGNAL maxIndex_reg: BCD_ARRAY_TYPE(2 downto 0);
@@ -62,7 +62,7 @@ ARCHITECTURE arch of cmdP IS
 BEGIN
      -----------------------------------------------------
 
-    pr: printer port map (print_en, clk, reset, txdone, dataIn, txData, txnow, finished);
+    pr: printer port map (en, clk, reset, txdone, dataIn, txData, txnow, finished);
     
     -----------------------------------------------------
     combi_nextState: PROCESS(curState, enP_reg, finished_reg)
@@ -90,11 +90,11 @@ BEGIN
     combi_out: PROCESS(curState, finished_reg)
     BEGIN
         done <= '0';
-        print_en <= '0';
+        en <= '0';
         IF curState = IDLE THEN
             b_index <= 0;
         ELSIF curState = PRINTING THEN
-            print_en <= '1';
+            en <= '1';
             dataIn <= fullData(b_index);
             b_index <= b_index + 1;
         ELSIF curState = WAITING AND finished_reg = '1' THEN

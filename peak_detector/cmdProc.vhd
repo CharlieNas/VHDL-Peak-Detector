@@ -32,7 +32,7 @@ architecture arch of cmdProc is
     type state_type is (INIT, VALID, PRINT_A, PRINT_P, PRINT_L, A, P, L, CARRIAGE_RETURN, LINE_FEED);
     signal curState, nextState: state_type; 
     signal enA, enP, enL, enPr: std_logic; 
-    signal doneA, doneP, doneL, donePr: std_logic;
+    signal doneA, doneP, doneL, finished: std_logic;
     signal seq_Available: std_logic;
     signal rxnow_reg, txdone_reg, dataReady_reg, seqDone_reg: std_logic;
     signal rxData_reg, byte_reg, dataIn: std_logic_vector (7 downto 0);
@@ -84,7 +84,7 @@ architecture arch of cmdProc is
 BEGIN
     -----------------------------------------------------
     --Create component entities
-    print:     printer port map (clk, reset, enPr, dataIn, txDone, txData, txnow, donePr);
+    print:     printer port map (clk, reset, enPr, dataIn, txDone, txData, txnow, finished);
     command_P: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData, txnow, doneP);
     command_L: cmdL port map (clk, reset, enL, dataResults_reg, txdone_reg, txData, txnow, doneL);
     -----------------------------------------------------
@@ -102,7 +102,7 @@ BEGIN
         END IF;
     END PROCESS;
     -----------------------------------------------------       
-    combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneA, doneL, doneP, donePr)
+    combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneA, doneL, doneP, finished)
     BEGIN
         CASE curState is
             WHEN INIT =>
@@ -122,27 +122,27 @@ BEGIN
                     nextState <= INIT;
                 END IF; 
             WHEN PRINT_A => 
-                IF donePr = '1' THEN
+                IF finished = '1' THEN
                     nextState <= A;
                 END IF;
             WHEN PRINT_P => 
-                IF donePr = '1' THEN
+                IF finished = '1' THEN
                     nextState <= CARRIAGE_RETURN;
                 END IF;
             WHEN PRINT_L => 
-                IF donePr = '1' THEN
+                IF finished = '1' THEN
                     nextState <= CARRIAGE_RETURN;
                 END IF;
             WHEN CARRIAGE_RETURN =>
-                IF donePr = '1' THEN
+                IF finished = '1' THEN
                     nextState <= LINE_FEED;
                 END IF;
             WHEN LINE_FEED =>
-                IF donePr = '1' AND route_reg = '0' AND direction_reg = '0' THEN
+                IF finished = '1' AND route_reg = '0' AND direction_reg = '0' THEN
                     nextState <= P;
-                ELSIF donePr = '1' AND route_reg = '1' AND direction_reg = '0' THEN
+                ELSIF finished = '1' AND route_reg = '1' AND direction_reg = '0' THEN
                     nextState <= L;
-                ELSIF donePr = '1' AND direction_reg = '1' THEN
+                ELSIF finished = '1' AND direction_reg = '1' THEN
                     nextState <= INIT;
                 END IF;
             WHEN A => 
