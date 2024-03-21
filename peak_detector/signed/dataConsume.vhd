@@ -149,13 +149,12 @@ architecture Behavioral of dataConsume is
 
         ------------------------------------------- S1 Retrieving data from generator -------------------------------------------
         when S1 => 
-          if counter < numWords_int then
             -- transform numWords to int (BCDint_enable = 1 & wait until BCDint_done = 1)
             -- flip ctrlOut
             -- receive data
             -- update counter
             -- if ctrlIn flips -> S2
-            
+          if rising_edge(ctrlIn) then
             next_state <= S2;
           end if;
           ------------------------------------------- S2 Process data bytes -------------------------------------------
