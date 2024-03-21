@@ -15,7 +15,7 @@ architecture testbench of tb_cmdP is
         port (
             clk:		in std_logic;                           --i
             reset:		in std_logic;                           --i
-            enP:         in std_logic;                           --i
+            en:         in std_logic;                           --i
             peakByte:   in std_logic_vector (7 downto 0);       --i
             maxIndex:   in BCD_ARRAY_TYPE(2 downto 0);          --i
             txdone:		in std_logic;                           --i
@@ -25,8 +25,9 @@ architecture testbench of tb_cmdP is
         );
     end component;
     
-    signal clk: std_logic := '0';
-    signal reset, sig_enP, sig_txdone, sig_txnow, sig_done: std_logic;
+    signal clk,sig_txdone: std_logic := '0';
+    
+    signal reset, sig_enP, sig_txnow, sig_done: std_logic;
     signal sig_peakByte, sig_txData: std_logic_vector (7 downto 0);
     signal sig_maxIndex: BCD_ARRAY_TYPE (2 downto 0); 
     
@@ -49,17 +50,17 @@ architecture testbench of tb_cmdP is
                                                           ("0111","0111","0000"));  --770 = 00110111, 00110111, 00110000
     
 begin
-    sig_peakByte <= byteSequence(6), byteSequence(5) after 195ns, byteSequence(4) after 305ns;
-    sig_maxIndex <= indexSequence(7), indexSequence(6) after 195ns, indexSequence(5) after 305ns;
+    sig_peakByte <= byteSequence(6), byteSequence(5) after 350ns, byteSequence(4) after 470ns;
+    sig_maxIndex <= indexSequence(7), indexSequence(6) after 350ns, indexSequence(5) after 470ns;
     clk <= NOT clk after 5 ns when now <200000 ms else clk;
-    reset <= '0', '1' after 2 ns, '0' after 15 ns, '1' after 240ns, '0' after 260ns;
-    sig_enP <= '0', '1' after 15 ns, '0' after 20 ns, '1' after 195ns, '0' after 200ns, '1' after 305ns, '0' after 310ns;
-    sig_txdone <= '1';
+    reset <= '0', '1' after 2 ns, '0' after 15 ns, '1' after 440ns, '0' after 460ns;
+    sig_enP <= '0', '1' after 15 ns, '0' after 20 ns, '1' after 350ns, '0' after 360ns, '1' after 470ns, '0' after 480ns;
+    sig_txdone <= NOT sig_txdone after 10 ns when now <200000 ms else sig_txdone;
     cmdP1: cmdP
         port map (
             clk => clk,
             reset => reset,
-            enP => sig_enP,
+            en => sig_enP,
             peakByte => sig_peakByte,
             maxIndex => sig_maxIndex,
             txdone => sig_txdone,
