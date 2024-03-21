@@ -10,7 +10,7 @@ ENTITY cmdP IS
     PORT (
         clk:		in std_logic;                           --i
         reset:		in std_logic;                           --i
-        enP:         in std_logic;                           --i
+        en:         in std_logic;                           --i
         peakByte:   in std_logic_vector (7 downto 0);       --i
         maxIndex:   in BCD_ARRAY_TYPE(2 downto 0);          --i
         txdone:		in std_logic;                           --i
@@ -23,15 +23,16 @@ END cmdP;
 ARCHITECTURE arch of cmdP IS
     TYPE state_type IS (IDLE, PRINTING, WAITING);
     SIGNAL curState, nextState: state_type;
+    
     TYPE ASCII_SEQUENCE IS array (0 to 7) of std_logic_vector (7 downto 0);
     SIGNAL fullData: ASCII_SEQUENCE;
-    SIGNAL enP_reg, en, finished: STD_LOGIC;
+    
+    SIGNAL enP_reg, print_en, finished: STD_LOGIC;
     SIGNAL b_index: natural := 0; --byte index
     SIGNAL peakByte_reg : STD_LOGIC_VECTOR (7 downto 0);
     SIGNAL maxIndex_reg: BCD_ARRAY_TYPE(2 downto 0);
     SIGNAL dataIn : STD_LOGIC_VECTOR (7 downto 0);
     SIGNAL finished_reg: STD_LOGIC;
-    -----------------------------------------------------
     COMPONENT printer IS
         PORT(
             en, clk, reset, txdone : in std_logic;
@@ -40,7 +41,7 @@ ARCHITECTURE arch of cmdP IS
             txnow, finished: out std_logic
             );
     END COMPONENT;
-    -----------------------------------------------------
+    
     -- NIB_TO_ASCII: Converts a 4-bit nibble representation of a hex digit to its 8-bit ASCII equivalent.
     FUNCTION NIB_TO_ASCII (
         v_in: IN STD_LOGIC_VECTOR(3 DOWNTO 0))
@@ -57,9 +58,12 @@ ARCHITECTURE arch of cmdP IS
         v_out := STD_LOGIC_VECTOR(v_temp);
         RETURN v_out;
     END NIB_TO_ASCII;
-    -----------------------------------------------------
+    
 BEGIN
-    pr: printer port map (en, clk, reset, txdone, dataIn, txData, txnow, finished);
+     -----------------------------------------------------
+
+    pr: printer port map (print_en, clk, reset, txdone, dataIn, txData, txnow, finished);
+    
     -----------------------------------------------------
     combi_nextState: PROCESS(curState, enP_reg, finished_reg)
     BEGIN
@@ -73,11 +77,15 @@ BEGIN
             WHEN PRINTING =>
                 nextState <= WAITING;
             WHEN WAITING =>
-                IF finished_reg = '1' AND b_index = 8 THEN
-                    nextState <= IDLE;
+                IF finished_reg = '1' THEN
+                    IF b_index = 8 THEN
+                        nextState <= IDLE;
+                    ELSE
+                        nextState <= PRINTING;
+                    END IF;
                 ELSE
-                    nextState <= PRINTING;
-                END IF;    
+                    nextState <= WAITING;
+                END IF; 
             WHEN OTHERS =>
                 nextState <= IDLE;
         END CASE;
@@ -86,11 +94,11 @@ BEGIN
     combi_out: PROCESS(curState, finished_reg)
     BEGIN
         done <= '0';
-        en <= '0';
+        print_en <= '0';
         IF curState = IDLE THEN
             b_index <= 0;
         ELSIF curState = PRINTING THEN
-            en <= '1';
+            print_en <= '1';
             dataIn <= fullData(b_index);
             b_index <= b_index + 1;
         ELSIF curState = WAITING AND finished_reg = '1' THEN
@@ -104,10 +112,10 @@ BEGIN
     combi_in: PROCESS(clk)
     BEGIN
 	    IF clk'event AND clk='1' THEN
-	           enP_reg <= enP;
+	           enP_reg <= en;
 	           peakByte_reg <= peakByte;
 	           maxIndex_reg <= maxIndex;
-	           finished_reg <= txdone;
+	           finished_reg <= finished;
 	    END IF;
 	  END PROCESS;
   -----------------------------------------------------
