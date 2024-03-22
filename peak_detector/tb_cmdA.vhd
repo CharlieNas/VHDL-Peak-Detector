@@ -1,12 +1,15 @@
-LIBRARY ieee;
-USE ieee.std_logic_1164.ALL;
-USE ieee.numeric_std.ALL;
-USE work.common_pack.ALL;
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+use work.common_pack.all;
+library UNISIM;
+use UNISIM.VCOMPONENTS.ALL;
+--use UNISIM.VPKG.ALL;
 
-ENTITY tb_a_command IS END;
+ENTITY tb_cmdA IS END;
 
-ARCHITECTURE behav OF tb_a_command IS
-  COMPONENT a_command 
+ARCHITECTURE behav OF tb_cmdA IS
+  COMPONENT cmdA 
   PORT (
     clk: IN STD_LOGIC;
     reset: IN STD_LOGIC;
@@ -32,7 +35,7 @@ ARCHITECTURE behav OF tb_a_command IS
   );
   END COMPONENT;
   
-  FOR t_a_command: a_command USE ENTITY WORK.a_command(arch);
+  FOR t_cmdA: cmdA USE ENTITY WORK.cmdA(arch);
   
   -- inputs
   SIGNAL clk, reset, ovErr, framErr, dataReady, seqDone, enA: STD_LOGIC :='0';
@@ -46,7 +49,7 @@ ARCHITECTURE behav OF tb_a_command IS
   TYPE state_type IS (R1, R2, R3, R4, R5, R6, R7, R8, R9, V1, V2, V3, V4, V5, V6, V7, V8, V9);
   SIGNAL curState, nextState: state_type;
 BEGIN
-  t_a_command: a_command PORT MAP(clk, reset, rxDone, rxData, rxNow, ovErr, framErr, txData, txNow, txDone, start, numWords, dataReady, byte, seqDone, enA, doneA);
+  t_cmdA: cmdA PORT MAP(clk, reset, rxDone, rxData, rxNow, ovErr, framErr, txData, txNow, txDone, start, numWords, dataReady, byte, seqDone, enA, doneA);
 
   -- generate clk
   clk <= NOT clk AFTER 50 ns WHEN NOW < 40 us ELSE clk;

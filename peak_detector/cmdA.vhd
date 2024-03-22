@@ -3,7 +3,7 @@ USE ieee.std_logic_1164.ALL;
 USE ieee.numeric_std.ALL;
 USE work.common_pack.ALL;
 
-ENTITY a_command IS
+ENTITY cmdA IS
   PORT (
     clk: IN STD_LOGIC;
     reset: IN STD_LOGIC;
@@ -27,9 +27,9 @@ ENTITY a_command IS
     enA: IN STD_LOGIC;
     doneA: OUT STD_LOGIC
   );
-END a_command;
+END cmdA;
 
-ARCHITECTURE arch OF a_command IS
+ARCHITECTURE arch OF cmdA IS
 
   COMPONENT aInput
     PORT(
