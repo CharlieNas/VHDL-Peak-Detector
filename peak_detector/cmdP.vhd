@@ -62,7 +62,7 @@ ARCHITECTURE arch of cmdP IS
 BEGIN
      -----------------------------------------------------
 
---    pr: printer port map (print_en, clk, reset, txdone, dataIn, txData, txnow, finished);
+    pr: printer port map (print_en, clk, reset, txdone, dataIn, txData, txnow, finished);
     
     -----------------------------------------------------
     combi_nextState: PROCESS(curState, enP_reg, finished_reg)
@@ -77,11 +77,15 @@ BEGIN
             WHEN PRINTING =>
                 nextState <= WAITING;
             WHEN WAITING =>
-                IF finished_reg = '1' AND b_index = 8 THEN
-                    nextState <= IDLE;
+                IF finished_reg = '1' THEN
+                    IF b_index = 8 THEN
+                        nextState <= IDLE;
+                    ELSE
+                        nextState <= PRINTING;
+                    END IF;
                 ELSE
-                    nextState <= PRINTING;
-                END IF;    
+                    nextState <= WAITING;
+                END IF; 
             WHEN OTHERS =>
                 nextState <= IDLE;
         END CASE;
@@ -111,7 +115,7 @@ BEGIN
 	           enP_reg <= en;
 	           peakByte_reg <= peakByte;
 	           maxIndex_reg <= maxIndex;
-	           finished_reg <= txdone;
+	           finished_reg <= finished;
 	    END IF;
 	  END PROCESS;
   -----------------------------------------------------
