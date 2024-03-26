@@ -13,9 +13,11 @@ ENTITY dataConsume IS
 
     start: in std_logic; -- to start retreiving the data 
     numWords_bcd: in BCD_ARRAY_TYPE(2 downto 0); -- how many numbers (data) are gonna enter to the data processor
+    -- TODO: transform it into a signed number
     data: in std_logic_vector(7 downto 0); -- each data is one number of 8 bits, data = number
 
     ctrlIn: in std_logic; -- for two phase protocol
+    -- TODO: we use this to check if the data generator have sent the data
     ctrlOut: out std_logic; -- for two phase protocol
 
     dataReady: out std_logic; -- set to high after the number is processes and the data processor is ready for a new number
@@ -38,6 +40,8 @@ architecture Behavioral of dataConsume is
 
   signal peak_value: signed(7 downto 0) := (others => '0');
   signal peak_index: integer := 0;
+
+  -- TODO: if i'm doing the signed version, should we still use logic_vector()
   signal buffer: array(0 to 999) of std_logic_vector(7 downto 0);
   
   begin
