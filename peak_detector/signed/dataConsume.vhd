@@ -13,9 +13,11 @@ ENTITY dataConsume IS
 
     start: in std_logic; -- to start retreiving the data 
     numWords_bcd: in BCD_ARRAY_TYPE(2 downto 0); -- how many numbers (data) are gonna enter to the data processor
+    -- TODO: transform it into a signed number
     data: in std_logic_vector(7 downto 0); -- each data is one number of 8 bits, data = number
 
     ctrlIn: in std_logic; -- for two phase protocol
+    -- TODO: we use this to check if the data generator have sent the data
     ctrlOut: out std_logic; -- for two phase protocol
 
     dataReady: out std_logic; -- set to high after the number is processes and the data processor is ready for a new number
@@ -38,12 +40,19 @@ architecture Behavioral of dataConsume is
   signal numWords_int: integer := 0;
   signal counter: integer := 0;
 
+  signal current_value: signed(7 downto 0) := (others => '0');
+
   signal peak_value: signed(7 downto 0) := (others => '0');
-  signal compare_enable: integer := 0;
+  signal compare_enable: boolean := FALSE;
   signal peak_index: integer := 0;
   signal peak_found: integer := 0; -- set to 3 and decrements if peak found, in order to record next three bytes
-  signal currentBytes: array(0 to 6) of std_logic_vector(7 downto 0); -- acts as our main buffer
-  signal lastThreeBytes: array(0 to 2) of std_logic_vector(7 downto 0); -- always storing last three bytes
+  signal currentBytes: array(0 to 6) of signed(7 downto 0); -- acts as our main buffer
+  signal lastThreeBytes: array(0 to 2) of signed(7 downto 0); -- always storing last three bytes
+
+  signal max_index_bcd_enable: boolean := FALSE;
+  signal max_index_bcd: BCD_ARRAY_TYPE(2 downto 0); 
+
+  signal store_data_result_enable: boolean := FALSE;
 
   ---------------------------------------------------------------  PROCESSES  ---------------------------------------------------------
   begin
@@ -58,36 +67,48 @@ architecture Behavioral of dataConsume is
     end if;
   end process;
 
-  -- Process to convert maxIndex from Binary to BCD
-  BinaryToBCD: process(clk)
+  -- Convert peak_index into BCD to output maxIndex in the future
+  MaxIndexBCD: process(clk)
   begin
+    if rising_edge(clk) and max_index_bcd_enable then
+      max_index_bcd(0)(3 downto 0) <= std_logic_vector(to_unsigned(peak_index mod 10, 4));
+      max_index_bcd(1)(3 downto 0) <= std_logic_vector(to_unsigned((peak_index / 10) mod 10, 4));
+      max_index_bcd(2)(3 downto 0) <= std_logic_vector(to_unsigned((peak_index / 100) mod 10, 4));
+    end if;
   end process;
-  
-  -- AddToBuffer: process(clk)
-  -- begin
-  --     if rising_edge(clk) and dataReady = '1' then
-  --         buffer(counter) <= signed(data);
-  --     end if;
-  -- end process;
-  
+
+  -- We dont need to do any conversion if currentBytes are already signed
+  StoreInDataResult: process(clk)
+  begin
+    if store_data_result_enable then
+      dataResults(0) <= currentBytes(0);
+      dataResults(1) <= currentBytes(1);
+      dataResults(2) <= currentBytes(2);
+      dataResults(3) <= currentBytes(3); -- peak
+      dataResults(4) <= currentBytes(4);
+      dataResults(5) <= currentBytes(5);
+      dataResults(6) <= currentBytes(6);
+    end if;
+  end process;
+
   -- split PeakDetection into several processes? ************************************
   PeakDetection: process(clk)
   begin
-      if rising_edge(clk) and compare_enable = 1 then
+      if rising_edge(clk) and compare_enable then
           -- 1. Update buffer with next three values if peak was recent
           if peak_found > 0 then
             if peak_found = 3:
-              currentBytes[4] = data;
+              currentBytes[4] = current_value;
             elsif peak_found = 2 then
-              currentBytes[5] = data;
+              currentBytes[5] = current_value;
             elsif peak_found = 1 then
-              currentBytes[6] = data;
+              currentBytes[6] = current_value;
             peak_found <= peak_found - 1;
             end if;
           end if;
 
           -- 2. PeakDetection Process
-          if counter = 0 or signed(data) > peak_value then
+          if counter = 0 or current_value > peak_value then
               -- update peak index
               peak_index <= counter;
               -- update the first 3 values of buffer
@@ -95,7 +116,7 @@ architecture Behavioral of dataConsume is
               currentBytes[1] <= lastThreeBytes[1];
               currentBytes[2] <= lastThreeBytes[2];
               -- # new peak in the middle
-              currentBytes[3] <= data;
+              currentBytes[3] <= current_value;
               -- # reset next three values of buffer 
               currentBytes[4] <= (others => '0');
               currentBytes[5] <= (others => '0');
@@ -107,36 +128,9 @@ architecture Behavioral of dataConsume is
           -- 3. Always keep track of last three bytes
           lastThreeBytes[0] <= lastThreeBytes[1];
           lastThreeBytes[1] <= lastThreeBytes[2];
-          lastThreeBytes[2] <= data;
+          lastThreeBytes[2] <= current_value;
       end if;
   end process;
-
-  GetValuesFromBuffer: process(clk)
-  begin
-  end process;
-  
-  -- -- Compares two binary string to determine which is bigger
-  -- compareData: PROCESS(clk)
-  -- begin
-  --   if clk'event and clk = '1' then
-  --     IF comp_en = TRUE then
-  --     newPeak_en <= FALSE;
-  --     -- If B greater than A, assign B to be the new A
-  --     -- Otherwise, if A greater than B or A equal to B, keep A as peak
-  --     if B > A then
-  --       newPeak_en <= TRUE;
-  --     else
-  --       newPeak_en <= FALSE;
-  --   end if;
-  -- end process;
-
-  CounterUpdate: process(clk)
-  begin
-      if rising_edge(clk) and dataReady = '1' then
-          counter <= counter + 1;
-      end if;
-  end process;
-
 
   ByteOutput: process(clk)
   begin
@@ -157,19 +151,32 @@ architecture Behavioral of dataConsume is
     end if;
   end process;
 
-  NextState: process(curr_state, start, counter)
+  NextState: process(curr_state, start)
     begin
       case curr_state is
         ------------------------------------------- S0 Idle State -------------------------------------------
         when S0 =>
-          -- reset all signals
+          -- reset created structures
           BCD2int_enable <= FALSE;
+          counter <= 0;
+          current_value <= (others => '0');
+          peak_value <= (others => '0');
+          compare_enable <= FALSE;
+          peak_index <= 0;
+          peak_found <= 0;
+          currentBytes <= (others => (others => '0'));
+          lastThreeBytes <= (others => (others => '0'));
+          max_index_bcd_enable <= FALSE;
+          max_index_bcd <= (others => 'X');
+          store_data_result_enable <= FALSE;
+
+          -- reset from the entity
           seqDone <= '0';
           dataReady <= '0';                      
           dataResults <= (others => 'X');
           maxIndex <= (others => 'X');
 
-          -- if start = 1 -> S1
+
           if start = '1' then
             -- transform numWords to int
             BCD2int_enable <= TRUE;
@@ -182,26 +189,23 @@ architecture Behavioral of dataConsume is
         when S1 => 
           -- flip ctrlOut
           ctrlOut <= not ctrlOut;
-          -- update counter
-          counter <= counter + 1;
 
             -- if ctrlIn flips (received data) -> S2
           if rising_edge(ctrlIn) then
+            current_value <= signed(data);
+            counter <= counter + 1;
             next_state <= S2;
           end if;
         ------------------------------------------- S2 Process data bytes -------------------------------------------
         when S2 => 
           -- compare 2 bytes (current byte & current peak)
-          compare_enable <= 1;
+          compare_enable <= TRUE;
           -- What peakDetection process does:
           -- 1. update buffer with next three values if peak was recent
           -- 2. if a peak was found, update peak index + update the first three values of the buffer with the last three bytes 
           --    + new peak in the middle of buffer + reset the next three values of the buffer 
           -- 3. always keep track of last three bytes
-            
-          -- sending byte & dataReady signal to command processor
-          byte <= data;
-          dataReady = '1';
+          dataReady <= '1';
 
           if counter = numWords_int then
               next_state <= S3;
@@ -211,13 +215,33 @@ architecture Behavioral of dataConsume is
 
         ------------------------------------------- S3 Handle output -------------------------------------------
         when S3 =>
-          -- Get the peak from buffer
-          -- convert the 7 values to BCD 
-          -- Put values into dataResults
-          -- Set seqDone = 1 to indicate completion
+          max_index_bcd_enable <= TRUE;
+          store_data_result_enable <= TRUE;
+          -- send outputs
+          maxIndex <= max_index_bcd;
           seqDone <= 1;
-
           next_state <= S0;
+        when others =>
+          -- default reseting
+          -- reset created structures
+          BCD2int_enable <= FALSE;
+          counter <= 0;
+          current_value <= (others => '0');
+          peak_value <= (others => '0');
+          compare_enable <= 0;
+          peak_index <= 0;
+          peak_found <= 0;
+          currentBytes <= (others => (others => '0'));
+          lastThreeBytes <= (others => (others => '0'));
+          max_index_bcd_enable <= FALSE;
+          max_index_bcd <= (others => 'X');
+          store_data_result_enable <= FALSE;
+
+          -- reset from the entity
+          seqDone <= '0';
+          dataReady <= '0';                      
+          dataResults <= (others => 'X');
+          maxIndex <= (others => 'X');
       end case;
 
   end process;
