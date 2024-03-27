@@ -176,8 +176,8 @@ architecture Behavioral of dataConsume is
 
 
           if start = '1' then
-            -- transform numWords to int
             BCD2int_enable <= TRUE;
+            ctrlOut <= '0';
             next_state <= S1;
           else
             next_state <= S0;
@@ -185,10 +185,7 @@ architecture Behavioral of dataConsume is
 
         ------------------------------------------- S1 Retrieving data from generator -------------------------------------------
         when S1 => 
-          -- flip ctrlOut
           ctrlOut <= not ctrlOut;
-
-            -- if ctrlIn flips (received data) -> S2
           if rising_edge(ctrlIn) then
             current_value <= signed(data);
             counter <= counter + 1;
@@ -196,13 +193,7 @@ architecture Behavioral of dataConsume is
           end if;
         ------------------------------------------- S2 Process data bytes -------------------------------------------
         when S2 => 
-          -- compare 2 bytes (current byte & current peak)
           compare_enable <= TRUE;
-          -- What peakDetection process does:
-          -- 1. update buffer with next three values if peak was recent
-          -- 2. if a peak was found, update peak index + update the first three values of the buffer with the last three bytes 
-          --    + new peak in the middle of buffer + reset the next three values of the buffer 
-          -- 3. always keep track of last three bytes
           dataReady <= '1';
 
           if counter = numWords_int then
@@ -215,10 +206,13 @@ architecture Behavioral of dataConsume is
         when S3 =>
           max_index_bcd_enable <= TRUE;
           store_data_result_enable <= TRUE;
+
           -- send outputs
           maxIndex <= max_index_bcd;
-          seqDone <= 1;
+          seqDone <= '1';
           next_state <= S0;
+
+
         when others =>
           -- default reseting
           -- reset created structures
