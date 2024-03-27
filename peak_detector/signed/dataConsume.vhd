@@ -13,11 +13,9 @@ ENTITY dataConsume IS
 
     start: in std_logic; -- to start retreiving the data 
     numWords_bcd: in BCD_ARRAY_TYPE(2 downto 0); -- how many numbers (data) are gonna enter to the data processor
-    -- TODO: transform it into a signed number
     data: in std_logic_vector(7 downto 0); -- each data is one number of 8 bits, data = number
 
     ctrlIn: in std_logic; -- for two phase protocol
-    -- TODO: we use this to check if the data generator have sent the data
     ctrlOut: out std_logic; -- for two phase protocol
 
     dataReady: out std_logic; -- set to high after the number is processes and the data processor is ready for a new number
@@ -97,12 +95,12 @@ architecture Behavioral of dataConsume is
       if rising_edge(clk) and compare_enable then
           -- 1. Update buffer with next three values if peak was recent
           if peak_found > 0 then
-            if peak_found = 3:
-              currentBytes[4] = current_value;
+            if peak_found = 3 then
+              currentBytes(4) = current_value;
             elsif peak_found = 2 then
-              currentBytes[5] = current_value;
+              currentBytes(5) = current_value;
             elsif peak_found = 1 then
-              currentBytes[6] = current_value;
+              currentBytes(6) = current_value;
             peak_found <= peak_found - 1;
             end if;
           end if;
@@ -112,23 +110,23 @@ architecture Behavioral of dataConsume is
               -- update peak index
               peak_index <= counter;
               -- update the first 3 values of buffer
-              currentBytes[0] <= lastThreeBytes[0];
-              currentBytes[1] <= lastThreeBytes[1];
-              currentBytes[2] <= lastThreeBytes[2];
+              currentBytes(0) <= lastThreeBytes(0);
+              currentBytes(1) <= lastThreeBytes(1);
+              currentBytes(2) <= lastThreeBytes(2);
               -- # new peak in the middle
-              currentBytes[3] <= current_value;
+              currentBytes(3) <= current_value;
               -- # reset next three values of buffer 
-              currentBytes[4] <= (others => '0');
-              currentBytes[5] <= (others => '0');
-              currentBytes[6] <= (others => '0');
+              currentBytes(4) <= (others => '0');
+              currentBytes(5) <= (others => '0');
+              currentBytes(6) <= (others => '0');
               -- # we update the last three 
               peak_found <= 3;
           end if;
 
           -- 3. Always keep track of last three bytes
-          lastThreeBytes[0] <= lastThreeBytes[1];
-          lastThreeBytes[1] <= lastThreeBytes[2];
-          lastThreeBytes[2] <= current_value;
+          lastThreeBytes(0) <= lastThreeBytes(1);
+          lastThreeBytes(1) <= lastThreeBytes(2);
+          lastThreeBytes(2) <= current_value;
       end if;
   end process;
 
