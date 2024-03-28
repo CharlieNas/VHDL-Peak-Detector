@@ -80,10 +80,37 @@ architecture arch of cmdProc is
         );
     END COMPONENT cmdL;
     -----------------------------------------------------
+    COMPONENT cmdA 
+    PORT (
+      clk: IN STD_LOGIC;
+      reset: IN STD_LOGIC;
+    
+      rxDone: OUT STD_LOGIC;
+      rxData: IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+      rxNow: IN STD_LOGIC;
+      ovErr: IN STD_LOGIC;
+      framErr: IN STD_LOGIC;
+    
+      txData: OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
+      txNow: OUT STD_LOGIC;
+      txDone: IN STD_LOGIC;
+    
+      start: OUT STD_LOGIC;
+      numWords: OUT BCD_ARRAY_TYPE(2 DOWNTO 0);
+      dataReady: IN STD_LOGIC;
+      byte: IN STD_LOGIC_VECTOR(7 DOWNTO 0);
+      seqDone: IN STD_LOGIC;
+      
+      enA: IN STD_LOGIC;
+      doneA: OUT STD_LOGIC
+    );
+    END COMPONENT;
+    -----------------------------------------------------
 BEGIN
     print:     printer port map (clk, reset, en, dataIn, txDone, txData, txnow, finished);
     command_P: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData, txnow, doneP);
     command_L: cmdL port map (clk, reset, enL, dataResults_reg, txdone_reg, txData, txnow, doneL);
+    command_A: cmdA port map (clk, reset, rxdone, rxData_reg, rxnow_reg, ovErr, framErr, txData, txnow, txdone_reg, start, numWords_bcd, dataReady_reg, byte_reg, seqDone_reg, enA, doneA);
     -----------------------------------------------------
     seq_input: PROCESS(CLK)
     BEGIN
