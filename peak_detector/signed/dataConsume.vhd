@@ -36,6 +36,8 @@ architecture Behavioral of dataConsume is
 
   -------------------------------------------------------------  SIGNALS  ----------------------------------------------------------------
   signal curr_state, next_state: state_type;
+
+  signal last_ctrlIn : std_logic := '0';
   
   signal BCD2int_enable: boolean := FALSE;
   signal numWords_int: integer := 0;
@@ -93,51 +95,108 @@ architecture Behavioral of dataConsume is
   end process;
 
   -- split PeakDetection into several processes? ************************************
-  PeakDetection: process(clk)
-  begin
-      if rising_edge(clk) and compare_enable then
-          -- 1. Update buffer with next three values if peak was recent
-          if peak_found > 0 then
-            if peak_found = 3 then
-              currentBytes(4) <= current_value;
-            elsif peak_found = 2 then
-              currentBytes(5) <= current_value;
-            elsif peak_found = 1 then
-              currentBytes(6) <= current_value;
-            peak_found <= peak_found - 1;
+  -- PeakDetection: process(clk, compare_enable)
+  -- begin
+  --     if rising_edge(clk) and compare_enable then
+  --         -- 1. Update buffer with next three values if peak was recent
+  --         if peak_found > 0 then
+  --           if peak_found = 3 then
+  --             currentBytes(4) <= current_value;
+  --           elsif peak_found = 2 then
+  --             currentBytes(5) <= current_value;
+  --           elsif peak_found = 1 then
+  --             currentBytes(6) <= current_value;
+  --           peak_found <= peak_found - 1;
+  --           end if;
+  --         end if;
+
+  --         -- 2. PeakDetection Process
+  --         if counter = 0 or current_value > peak_value then
+  --             -- update peak index
+  --             peak_index <= counter;
+  --             -- update the first 3 values of buffer
+  --             currentBytes(0) <= lastThreeBytes(0);
+  --             currentBytes(1) <= lastThreeBytes(1);
+  --             currentBytes(2) <= lastThreeBytes(2);
+  --             -- # new peak in the middle
+  --             currentBytes(3) <= current_value;
+  --             -- # reset next three values of buffer 
+  --             currentBytes(4) <= (others => '0');
+  --             currentBytes(5) <= (others => '0');
+  --             currentBytes(6) <= (others => '0');
+  --             -- # we update the last three 
+  --             peak_found <= 3;
+  --         end if;
+
+  --         -- 3. Always keep track of last three bytes
+  --         lastThreeBytes(0) <= lastThreeBytes(1);
+  --         lastThreeBytes(1) <= lastThreeBytes(2);
+  --         lastThreeBytes(2) <= current_value;
+  --     end if;
+  -- end process;
+
+PeakDetection: process(clk)
+begin
+    if rising_edge(clk) then
+        if compare_enable then
+            -- 1. Update buffer with next three values if peak was recent
+            if peak_found > 0 then
+                case peak_found is
+                    when 3 =>
+                        currentBytes(4) <= current_value;
+                    when 2 =>
+                        currentBytes(5) <= current_value;
+                    when 1 =>
+                        currentBytes(6) <= current_value;
+                    when others =>
+                        null;
+                end case;
+                peak_found <= peak_found - 1;
             end if;
-          end if;
 
-          -- 2. PeakDetection Process
-          if counter = 0 or current_value > peak_value then
-              -- update peak index
-              peak_index <= counter;
-              -- update the first 3 values of buffer
-              currentBytes(0) <= lastThreeBytes(0);
-              currentBytes(1) <= lastThreeBytes(1);
-              currentBytes(2) <= lastThreeBytes(2);
-              -- # new peak in the middle
-              currentBytes(3) <= current_value;
-              -- # reset next three values of buffer 
-              currentBytes(4) <= (others => '0');
-              currentBytes(5) <= (others => '0');
-              currentBytes(6) <= (others => '0');
-              -- # we update the last three 
-              peak_found <= 3;
-          end if;
+            -- 2. PeakDetection Process
+            -- If it's the first byte or the current byte is greater than the current peak
+            if counter = 0 or current_value > peak_value then
+                peak_value := current_value;
+                peak_index := counter;
 
-          -- 3. Always keep track of last three bytes
-          lastThreeBytes(0) <= lastThreeBytes(1);
-          lastThreeBytes(1) <= lastThreeBytes(2);
-          lastThreeBytes(2) <= current_value;
-      end if;
-  end process;
+                -- Update the buffer for the values before the peak
+                currentBytes(0) <= lastThreeBytes(0);
+                currentBytes(1) <= lastThreeBytes(1);
+                currentBytes(2) <= lastThreeBytes(2);
+                currentBytes(3) <= current_value; -- Peak in the middle
+
+                -- Reset the next three values of the buffer as placeholders for potential future peaks
+                currentBytes(4) <= (others => '0');
+                currentBytes(5) <= (others => '0');
+                currentBytes(6) <= (others => '0');
+                peak_found := 3; -- Ready to track the next three bytes post-peak
+            end if;
+
+            -- 3. Always keep track of last three bytes
+            -- Shift lastThreeBytes to make room for the new byte
+            lastThreeBytes(0) <= lastThreeBytes(1);
+            lastThreeBytes(1) <= lastThreeBytes(2);
+            lastThreeBytes(2) <= current_value;
+            
+            compare_enable <= FALSE;
+        end if;
+    end if;
+end process;
 
   ByteOutput: process(clk)
   begin
       if rising_edge(clk) then
           byte <= data; -- Output the processed data
       end if;
+  end process;
+
+  -- Register the last value of ctrlIn on every clock edge
+  CtrlInRegister: process(clk)
+  begin
+    if rising_edge(clk) then
+      last_ctrlIn <= ctrlIn;
+    end if;
   end process;
 
   ------------------------------------------------------  STATE MACHINE  --------------------------------------------------------------
@@ -190,7 +249,7 @@ architecture Behavioral of dataConsume is
 
           if start = '1' then
             BCD2int_enable <= TRUE;
-            ctrlOut <= '0';
+            ctrlOut <= '1';
             next_state <= S1;
           else
             next_state <= S0;
@@ -198,20 +257,22 @@ architecture Behavioral of dataConsume is
 
         ------------------------------------------- S1 Retrieving data from generator -------------------------------------------
         when S1 => 
-          ctrlOut <= not ctrlOut;
-          if rising_edge(ctrlIn) then
+          if last_ctrlIn = '0' and ctrlIn = '1' then
             current_value <= signed(data);
             counter <= counter + 1;
+            compare_enable <= TRUE; -- Activate peak detection
             next_state <= S2;
           end if;
         ------------------------------------------- S2 Process data bytes -------------------------------------------
         when S2 => 
-          compare_enable <= TRUE;
           dataReady <= '1';
 
           if counter = numWords_int then
-              next_state <= S3;
+            compare_enable <= FALSE;
+            next_state <= S3;
           else
+            ctrlOut <= not ctrlOut; -- Toggle ctrlOut to request the next word
+            compare_enable <= FALSE; -- Reset peak detection for the next byte
             next_state <= S1;
           end if;
 
