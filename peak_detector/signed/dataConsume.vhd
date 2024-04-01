@@ -38,6 +38,7 @@ architecture Behavioral of dataConsume is
   signal curr_state, next_state: state_type;
 
   signal last_ctrlIn : std_logic := '0';
+  signal ctrlOut_internal: std_logic := '0';
   
   signal BCD2int_enable: boolean := FALSE;
   signal numWords_int: integer := 0;
@@ -59,7 +60,7 @@ architecture Behavioral of dataConsume is
 
   ---------------------------------------------------------------  PROCESSES  ---------------------------------------------------------
   begin
-
+    
   -- Process to transform 3-bit BCD array into an integer
   BCDToInteger: process(clk, BCD2int_enable, numWords_bcd)
   begin
@@ -139,6 +140,7 @@ PeakDetection: process(clk)
 begin
     if rising_edge(clk) then
         if compare_enable then
+            report "COMPARING PEAK DETECTOR" severity note;
             -- 1. Update buffer with next three values if peak was recent
             if peak_found > 0 then
                 case peak_found is
@@ -157,8 +159,8 @@ begin
             -- 2. PeakDetection Process
             -- If it's the first byte or the current byte is greater than the current peak
             if counter = 0 or current_value > peak_value then
-                peak_value := current_value;
-                peak_index := counter;
+                peak_value <= current_value;
+                peak_index <= counter;
 
                 -- Update the buffer for the values before the peak
                 currentBytes(0) <= lastThreeBytes(0);
@@ -170,7 +172,7 @@ begin
                 currentBytes(4) <= (others => '0');
                 currentBytes(5) <= (others => '0');
                 currentBytes(6) <= (others => '0');
-                peak_found := 3; -- Ready to track the next three bytes post-peak
+                peak_found <= 3; -- Ready to track the next three bytes post-peak
             end if;
 
             -- 3. Always keep track of last three bytes
@@ -178,8 +180,7 @@ begin
             lastThreeBytes(0) <= lastThreeBytes(1);
             lastThreeBytes(1) <= lastThreeBytes(2);
             lastThreeBytes(2) <= current_value;
-            
-            compare_enable <= FALSE;
+         
         end if;
     end if;
 end process;
@@ -195,6 +196,7 @@ end process;
   CtrlInRegister: process(clk)
   begin
     if rising_edge(clk) then
+      --report "UPDATE LAST CONTROL IN" severity note;
       last_ctrlIn <= ctrlIn;
     end if;
   end process;
@@ -222,8 +224,6 @@ end process;
           current_value <= (others => '0');
           peak_value <= (others => '0');
           compare_enable <= FALSE;
-          peak_index <= 0;
-          peak_found <= 0;
           currentBytes <= (others => (others => '0'));
           lastThreeBytes <= (others => (others => '0'));
           max_index_bcd_enable <= FALSE;
@@ -248,8 +248,10 @@ end process;
 
 
           if start = '1' then
+            report "STARTING S0" severity note;
             BCD2int_enable <= TRUE;
-            ctrlOut <= '1';
+            ctrlOut <= '0';
+            report "GOING S1" severity note;
             next_state <= S1;
           else
             next_state <= S0;
@@ -257,27 +259,35 @@ end process;
 
         ------------------------------------------- S1 Retrieving data from generator -------------------------------------------
         when S1 => 
-          if last_ctrlIn = '0' and ctrlIn = '1' then
+          report "STARTING S1" severity note;
+          if rising_edge(ctrlIn) then
+            report "CONTROL IN FLIPPED" severity note;
             current_value <= signed(data);
             counter <= counter + 1;
             compare_enable <= TRUE; -- Activate peak detection
+            report "GOING S2" severity note;
             next_state <= S2;
+          else
+            next_state <= S1;
           end if;
         ------------------------------------------- S2 Process data bytes -------------------------------------------
         when S2 => 
+          report "STARTING S2" severity note;
           dataReady <= '1';
 
           if counter = numWords_int then
             compare_enable <= FALSE;
             next_state <= S3;
           else
-            ctrlOut <= not ctrlOut; -- Toggle ctrlOut to request the next word
+            report "GOING TO S1 FROM S2" severity note;
+            ctrlOut <= not ctrlOut_internal; -- Toggle ctrlOut to request the next word
             compare_enable <= FALSE; -- Reset peak detection for the next byte
             next_state <= S1;
           end if;
 
         ------------------------------------------- S3 Handle output -------------------------------------------
         when S3 =>
+          report "S3" severity note;
           max_index_bcd_enable <= TRUE;
           store_data_result_enable <= TRUE;
 
