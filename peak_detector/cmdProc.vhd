@@ -43,7 +43,10 @@ architecture arch of cmdProc is
     signal N_reg: std_logic_vector (2 downto 0);
     SIGNAL NNN: BCD_ARRAY_TYPE(2 DOWNTO 0);
     SIGNAL storedByte: UNSIGNED(7 DOWNTO 0);
-    -----------------------------------------------------
+    
+    ---------------------------
+    -- Component Definitions
+    ---------------------------
     COMPONENT printer is
         port (
           clk:		    in std_logic;                               --i
@@ -56,7 +59,7 @@ architecture arch of cmdProc is
           finished:     out std_logic                               --o
         );
     END COMPONENT printer;
-    -----------------------------------------------------
+
     COMPONENT cmdP IS
         PORT (
             clk:		in std_logic;                               --i
@@ -70,7 +73,7 @@ architecture arch of cmdProc is
             doneP:      out std_logic                               --o
         );
     END COMPONENT cmdP;
-    -----------------------------------------------------
+
     COMPONENT cmdL IS
         PORT (  
           clk:		    in std_logic;                               --i
@@ -83,28 +86,16 @@ architecture arch of cmdProc is
           doneL:        out std_logic                               --o
         );
     END COMPONENT cmdL;
-    -----------------------------------------------------
+
 
 BEGIN
     print:     printer port map (clk, reset, en, dataIn, txDone, txData, txNow, finished);
     command_P: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData, txNow, doneP);
     command_L: cmdL port map (clk, reset, enL, dataResults_reg, txdone, txData, txNow, doneL);
-    -----------------------------------------------------
     
-    seq_input: PROCESS(CLK)
-    BEGIN
-        IF CLK'EVENT AND CLK='1' THEN
-            rxnow_reg <=        rxnow;
-            txdone_reg <=       txdone;
-            dataReady_reg <=    dataReady;
-            seqDone_reg <=      seqDone;
-            rxData_reg <=       rxData;
-            byte_reg <=         byte;
-            maxIndex_reg <=     maxIndex;
-            dataResults_reg <=  dataResults;
-        END IF;
-    END PROCESS;
-    -----------------------------------------------------       
+    ---------------------------
+    -- Combinatorial Inputs
+    ---------------------------
     combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneL, doneP, finished, dataReady_reg)
     BEGIN
         CASE curState is
@@ -228,18 +219,10 @@ BEGIN
                 nextState <= INIT;
         END CASE;
     END PROCESS;
-    -----------------------------------------------------
-    sequencing: PROCESS (clk, reset, seqDone_reg)
-    BEGIN
-        IF CLK'EVENT AND CLK='1' THEN
-            IF RESET = '1' THEN
-                seq_Available <= '0';
-            ELSIF seqDone_reg = '1' THEN
-                seq_Available <= '1';
-            END IF;
-        END IF;
-    END PROCESS; 
-    -----------------------------------------------------   
+
+    ---------------------------
+    -- Combinatorial Outputs
+    ---------------------------
     combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg)
     BEGIN
         enP <= '0';
@@ -296,7 +279,7 @@ BEGIN
             dataIn <= "00001010";
             en <= '1';
             IF N_reg = "010" THEN
-                start <= '1'; ----------------------------------------------------- 
+                start <= '1'; 
                 numWords_bcd <= NNN;
             END IF;
         ELSIF curState = SPACE THEN
@@ -332,7 +315,42 @@ BEGIN
             END IF; 
         END IF;
     END PROCESS;
-    -----------------------------------------------------
+
+    ---------------------------
+    -- seq_Available Managing
+    ---------------------------
+    sequencing: PROCESS (clk, reset, seqDone_reg)
+    BEGIN
+        IF CLK'EVENT AND CLK='1' THEN
+            IF RESET = '1' THEN
+                seq_Available <= '0';
+            ELSIF seqDone_reg = '1' THEN
+                seq_Available <= '1';
+            END IF;
+        END IF;
+    END PROCESS; 
+
+
+    ---------------------------
+    -- Input registering
+    ---------------------------
+    seq_input: PROCESS(CLK)
+    BEGIN
+        IF CLK'EVENT AND CLK='1' THEN
+            rxnow_reg <=        rxnow;
+            txdone_reg <=       txdone;
+            dataReady_reg <=    dataReady;
+            seqDone_reg <=      seqDone;
+            rxData_reg <=       rxData;
+            byte_reg <=         byte;
+            maxIndex_reg <=     maxIndex;
+            dataResults_reg <=  dataResults;
+        END IF;
+    END PROCESS;
+
+    ---------------------------
+    -- Sequential state updating
+    ---------------------------
     seq_state: PROCESS (clk, reset)
     BEGIN
         IF CLK'EVENT AND CLK='1' THEN
@@ -343,5 +361,4 @@ BEGIN
             END IF;
         END IF;
     END PROCESS; 
-    -----------------------------------------------------
 END arch; 
