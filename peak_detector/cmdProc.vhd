@@ -29,17 +29,24 @@ entity cmdProc is
 end cmdProc;
 
 architecture arch of cmdProc is
-    type state_type is (INIT, VALID, PRINT_A, PRINT_P, PRINT_L, A, P, L, CARRIAGE_RETURN, LINE_FEED);
+    type state_type is (INIT, VALID, PRINT_A, PRINT_P, PRINT_L, N2, N1, N0, ECHO, DATAPROC, STOREBYTE, HEX1, HEX2, SPACE, P, L, CARRIAGE_RETURN, LINE_FEED);
     signal curState, nextState: state_type; 
-    signal enA, enP, enL, en: std_logic; 
-    signal doneA, doneP, doneL, finished: std_logic;
+    signal enP, enL, en: std_logic; 
+    signal doneP, doneL, finished: std_logic;
     signal seq_Available: std_logic;
     signal rxnow_reg, txdone_reg, dataReady_reg, seqDone_reg: std_logic;
     signal rxData_reg, byte_reg, dataIn: std_logic_vector (7 downto 0);
     signal maxIndex_reg: BCD_ARRAY_TYPE(2 downto 0);  
     signal dataResults_reg: CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);
-    signal route_reg, direction_reg: std_logic;
-    -----------------------------------------------------
+    signal direction_reg: std_logic;
+    signal route_reg: std_logic_vector (1 downto 0);
+    signal N_reg: std_logic_vector (2 downto 0);
+    SIGNAL NNN: BCD_ARRAY_TYPE(2 DOWNTO 0);
+    SIGNAL storedByte: UNSIGNED(7 DOWNTO 0);
+    
+    ---------------------------
+    -- Component Definitions
+    ---------------------------
     COMPONENT printer is
         port (
           clk:		    in std_logic;                               --i
@@ -52,7 +59,7 @@ architecture arch of cmdProc is
           finished:     out std_logic                               --o
         );
     END COMPONENT printer;
-    -----------------------------------------------------
+
     COMPONENT cmdP IS
         PORT (
             clk:		in std_logic;                               --i
@@ -66,7 +73,7 @@ architecture arch of cmdProc is
             doneP:      out std_logic                               --o
         );
     END COMPONENT cmdP;
-    -----------------------------------------------------
+
     COMPONENT cmdL IS
         PORT (  
           clk:		    in std_logic;                               --i
@@ -79,54 +86,17 @@ architecture arch of cmdProc is
           doneL:        out std_logic                               --o
         );
     END COMPONENT cmdL;
-    -----------------------------------------------------
-    COMPONENT cmdA 
-    PORT (
-      clk: IN STD_LOGIC;
-      reset: IN STD_LOGIC;
-    
-      rxDone: OUT STD_LOGIC;
-      rxData: IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-      rxNow: IN STD_LOGIC;
-      ovErr: IN STD_LOGIC;
-      framErr: IN STD_LOGIC;
-    
-      txData: OUT STD_LOGIC_VECTOR(7 DOWNTO 0);
-      txNow: OUT STD_LOGIC;
-      txDone: IN STD_LOGIC;
-    
-      start: OUT STD_LOGIC;
-      numWords: OUT BCD_ARRAY_TYPE(2 DOWNTO 0);
-      dataReady: IN STD_LOGIC;
-      byte: IN STD_LOGIC_VECTOR(7 DOWNTO 0);
-      seqDone: IN STD_LOGIC;
-      
-      enA: IN STD_LOGIC;
-      doneA: OUT STD_LOGIC
-    );
-    END COMPONENT;
-    -----------------------------------------------------
+
+
 BEGIN
-    print:     printer port map (clk, reset, en, dataIn, txDone, txData, txnow, finished);
-    command_P: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData, txnow, doneP);
-    command_L: cmdL port map (clk, reset, enL, dataResults_reg, txdone_reg, txData, txnow, doneL);
-    command_A: cmdA port map (clk, reset, rxdone, rxData_reg, rxnow_reg, ovErr, framErr, txData, txnow, txdone_reg, start, numWords_bcd, dataReady_reg, byte_reg, seqDone_reg, enA, doneA);
-    -----------------------------------------------------
-    seq_input: PROCESS(CLK)
-    BEGIN
-        IF CLK'EVENT AND CLK='1' THEN
-            rxnow_reg <=        rxnow;
-            txdone_reg <=       txdone;
-            dataReady_reg <=    dataReady;
-            seqDone_reg <=      seqDone;
-            rxData_reg <=       rxData;
-            byte_reg <=         byte;
-            maxIndex_reg <=     maxIndex;
-            dataResults_reg <=  dataResults;
-        END IF;
-    END PROCESS;
-    -----------------------------------------------------       
-    combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneA, doneL, doneP, finished)
+    print:     printer port map (clk, reset, en, dataIn, txDone, txData, txNow, finished);
+    command_P: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData, txNow, doneP);
+    command_L: cmdL port map (clk, reset, enL, dataResults_reg, txdone, txData, txNow, doneL);
+    
+    ---------------------------
+    -- Combinatorial Inputs
+    ---------------------------
+    combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneL, doneP, finished, dataReady_reg)
     BEGIN
         CASE curState is
             WHEN INIT =>
@@ -147,7 +117,39 @@ BEGIN
                 END IF; 
             WHEN PRINT_A => 
                 IF finished = '1' THEN
-                    nextState <= A;
+                    nextState <= N2;
+                END IF;
+            WHEN N2 => 
+                IF rxnow_reg = '1' THEN
+                    nextState <= ECHO;
+                ELSE
+                    nextState <= N2;
+                END IF;
+            WHEN N1 => 
+                IF rxnow_reg = '1' THEN
+                    nextState <= ECHO;
+                ELSE
+                    nextState <= N1;
+                END IF;
+            WHEN N0 => 
+                IF rxnow_reg = '1' AND rxData_reg >= "00110000" AND rxData_reg <= "00111001" THEN
+                    nextState <= ECHO;
+                ELSE
+                    nextState <= N0;
+                END IF;
+            WHEN ECHO =>
+                IF finished = '1' and N_reg = "000" THEN -- Came from N2 and digit
+                    nextState <= N1;
+                ELSIF finished = '1' and N_reg = "001" THEN -- Came from N1 and digit
+                    nextState <= N0;
+                ELSIF finished = '1' and N_reg = "010" THEN -- Came from N0 and digit
+                    nextState <= CARRIAGE_RETURN;
+                ELSIF finished = '1' and N_reg = "011" THEN -- Recvieved another A
+                    nextState <= PRINT_A;
+                ELSIF finished = '0' THEN
+                    nextState <= ECHO;
+                ELSE 
+                    nextState <= INIT;
                 END IF;
             WHEN PRINT_P => 
                 IF finished = '1' THEN
@@ -162,18 +164,44 @@ BEGIN
                     nextState <= LINE_FEED;
                 END IF;
             WHEN LINE_FEED =>
-                IF finished = '1' AND route_reg = '0' AND direction_reg = '0' THEN
+                IF finished = '1' AND route_reg = "00" AND direction_reg = '0' THEN
                     nextState <= P;
-                ELSIF finished = '1' AND route_reg = '1' AND direction_reg = '0' THEN
+                ELSIF finished = '1' AND route_reg = "01" AND direction_reg = '0' THEN
                     nextState <= L;
+                ELSIF finished = '1' AND route_reg = "10" AND direction_reg = '0' THEN
+                    nextState <= DATAPROC;
                 ELSIF finished = '1' AND direction_reg = '1' THEN
                     nextState <= INIT;
                 END IF;
-            WHEN A => 
-                IF doneA = '1' THEN
-                    nextState <= CARRIAGE_RETURN;
+            WHEN DATAPROC =>
+                IF dataReady_reg='1' THEN
+                  nextState <= STOREBYTE;
                 ELSE
-                    nextState <= A;
+                  nextState <= DATAPROC;
+                END IF; 
+            WHEN STOREBYTE =>
+                nextState <= HEX1; 
+            WHEN HEX1 =>
+                IF finished ='1' THEN
+                  nextState <= HEX2;
+                ELSE
+                  nextState <= HEX1;
+                END IF;
+            WHEN HEX2 =>
+                IF finished ='1' THEN
+                    IF seq_Available ='1' THEN ----------------------------------------------------- 
+                        nextState <= INIT;
+                    ELSE
+                        nextState <= SPACE;
+                    END IF;
+                ELSE
+                  nextState <= HEX2;
+                END IF;
+            WHEN SPACE =>
+                IF finished ='1' THEN
+                    nextState <= DATAPROC;
+                ELSE
+                    nextState <= SPACE;
                 END IF;
             WHEN P => 
                 IF doneP = '1' THEN
@@ -191,35 +219,44 @@ BEGIN
                 nextState <= INIT;
         END CASE;
     END PROCESS;
-    -----------------------------------------------------
-    sequencing : PROCESS(seqDone_reg, clk)
-    BEGIN 
-        IF CLK'EVENT AND CLK='1' THEN
-            IF seqDone_reg = '1' THEN
-                seq_Available <= '1';
-            END IF;
-        END IF;
-    END PROCESS;
-    -----------------------------------------------------   
-    combi_out: PROCESS(curState)
+
+    ---------------------------
+    -- Combinatorial Outputs
+    ---------------------------
+    combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg)
     BEGIN
-        enA <= '0';
         enP <= '0';
         enL <= '0';
         en <= '0';
+        rxDone <= '0';
+        start <= '0';
         IF curState = VALID THEN 
-            rxdone <= '1';
             dataIn <= rxData_reg;
             -- Set printer enable high for 1 clock cycle if going into printing state
             IF (rxData_reg = "01000001" OR rxData_reg = "01100001") OR 
                ((rxData_reg = "01010000" OR rxData_reg = "01110000") and seq_Available = '1') OR
                ((rxData_reg = "01001100" OR rxData_reg = "01101100") and seq_Available = '1') THEN
                en <= '1';
+            rxDone <= '1';
             END IF;
-        -- Set command enable signals high for 1 clock cycle if done printing
-        ELSIF curState = A THEN 
-            enA <= '1';
-            direction_reg <= '1';
+        ELSIF rxnow_reg = '1' THEN  
+            dataIn <= rxData_reg;
+            IF curState = N2 AND rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
+                N_reg <= "000";
+                NNN(2) <= rxData_reg(3 downto 0);
+            ELSIF curState = N1 AND rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
+                N_reg <= "001";
+                NNN(1) <= rxData_reg(3 downto 0);
+            ELSIF curState = N0 AND rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
+                N_reg <= "010";
+                NNN(0) <= rxData_reg(3 downto 0);
+            ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
+                N_reg <= "011";
+            ELSIF curState /= ECHO THEN
+                N_reg <= "111";
+            END IF;
+            rxDone <= '1';
+            en <= '1';
         ELSIF curState = P THEN 
             enP <= '1';
             direction_reg <= '1';
@@ -227,10 +264,13 @@ BEGIN
             enL <= '1';
             direction_reg <= '1';
         ELSIF curState = PRINT_P THEN
-            route_reg <= '0';
+            route_reg <= "00";
             direction_reg <= '0';
         ELSIF curState = PRINT_L THEN
-            route_reg <= '1';
+            route_reg <= "01";
+            direction_reg <= '0';
+        ELSIF curState = PRINT_A THEN 
+            route_reg <= "10";
             direction_reg <= '0';
         ELSIF curState = CARRIAGE_RETURN THEN
             dataIn <= "00001101";
@@ -238,19 +278,87 @@ BEGIN
         ELSIF curState = LINE_FEED THEN
             dataIn <= "00001010";
             en <= '1';
+            IF N_reg = "010" THEN
+                start <= '1'; 
+                numWords_bcd <= NNN;
+            END IF;
+        ELSIF curState = SPACE THEN
+            dataIn <= "00000000";
+            en <= '1';
+            start <= '1';
+        ELSIF curState = DATAPROC THEN
+            IF dataReady_reg='1' THEN
+                storedByte <= UNSIGNED(byte_reg);
+            END IF;
+        ELSIF curState = STOREBYTE THEN
+            IF storedByte(7 DOWNTO 4) >= "1010" AND storedByte(7 DOWNTO 4) <= "1111" THEN
+                dataIn <= STD_LOGIC_VECTOR(storedByte(7 DOWNTO 4) + "00110111");
+            ELSE
+                dataIn <= STD_LOGIC_VECTOR(storedByte(7 DOWNTO 4) + "00110000");
+            END IF;
+            en <= '1';
+        ELSIF curState = HEX1 THEN
+            IF finished ='1' THEN
+                IF storedByte(3 DOWNTO 0) >= "1010" AND storedByte(3 DOWNTO 0) <= "1111" THEN
+                    dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110111");
+                ELSE
+                    dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110000");
+                END IF;
+                en <= '1';
+            END IF;
+        ELSIF curState = HEX2 THEN
+            IF finished ='1' THEN
+                IF seqDone_reg /= '1' THEN
+                    dataIN <= "00100000";
+                    en <= '1';
+                END IF;
+            END IF; 
         END IF;
     END PROCESS;
-    -----------------------------------------------------
+
+    ---------------------------
+    -- seq_Available Managing
+    ---------------------------
+    sequencing: PROCESS (clk, reset, seqDone_reg)
+    BEGIN
+        IF CLK'EVENT AND CLK='1' THEN
+            IF RESET = '1' THEN
+                seq_Available <= '0';
+            ELSIF seqDone_reg = '1' THEN
+                seq_Available <= '1';
+            END IF;
+        END IF;
+    END PROCESS; 
+
+
+    ---------------------------
+    -- Input registering
+    ---------------------------
+    seq_input: PROCESS(CLK)
+    BEGIN
+        IF CLK'EVENT AND CLK='1' THEN
+            rxnow_reg <=        rxnow;
+            txdone_reg <=       txdone;
+            dataReady_reg <=    dataReady;
+            seqDone_reg <=      seqDone;
+            rxData_reg <=       rxData;
+            byte_reg <=         byte;
+            maxIndex_reg <=     maxIndex;
+            dataResults_reg <=  dataResults;
+        END IF;
+    END PROCESS;
+
+    ---------------------------
+    -- Sequential state updating
+    ---------------------------
     seq_state: PROCESS (clk, reset)
     BEGIN
         IF CLK'EVENT AND CLK='1' THEN
             IF RESET = '1' THEN
                 curState <= INIT;
-                seq_Available <= '0';
             ELSE
                 curState <= nextState;
             END IF;
         END IF;
     END PROCESS; 
-    -----------------------------------------------------
 END arch; 
