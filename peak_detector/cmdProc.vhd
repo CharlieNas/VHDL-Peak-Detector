@@ -39,6 +39,9 @@ architecture arch of cmdProc is
     signal maxIndex_reg: BCD_ARRAY_TYPE(2 downto 0);  
     signal dataResults_reg: CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);
     signal route_reg, direction_reg: std_logic;
+    -- signals to assign to outputs
+    signal rxDone_main, rxDone_a, txNow_printer, txNow_a, txNow_l, txNow_p: std_logic;
+    signal txData_printer, txData_a, txData_l, txData_p: std_logic_vector(7 downto 0);
     -----------------------------------------------------
     COMPONENT printer is
         port (
@@ -107,11 +110,41 @@ architecture arch of cmdProc is
     END COMPONENT;
     -----------------------------------------------------
 BEGIN
-    print:     printer port map (clk, reset, en, dataIn, txDone, txData, txnow, finished);
-    command_P: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData, txnow, doneP);
-    command_L: cmdL port map (clk, reset, enL, dataResults_reg, txdone_reg, txData, txnow, doneL);
-    command_A: cmdA port map (clk, reset, rxdone, rxData_reg, rxnow_reg, ovErr, framErr, txData, txnow, txdone_reg, start, numWords_bcd, dataReady_reg, byte_reg, seqDone_reg, enA, doneA);
+    print:     printer port map (clk, reset, en, dataIn, txDone, txData_printer, txNow_printer, finished);
+    command_P: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData_p, txNow_p, doneP);
+    command_L: cmdL port map (clk, reset, enL, dataResults_reg, txdone_reg, txData_l, txNow_l, doneL);
+    command_A: cmdA port map (clk, reset, rxDone_a, rxData_reg, rxNow_reg, ovErr, framErr, txData_a, txNow_a, txdone_reg, start, numWords_bcd, dataReady_reg, byte_reg, seqDone_reg, enA, doneA);
     -----------------------------------------------------
+    assign_tx: PROCESS(curState, txNow_printer, txNow_a, txNow_l, txNow_p, txData_printer, txData_a, txData_l, txData_p)
+      BEGIN
+        IF curState=PRINT_A OR curState=PRINT_L OR curState=PRINT_P OR curState=CARRIAGE_RETURN OR curState=LINE_FEED THEN
+          txData <= txData_printer;
+          txNow <= txNow_printer;
+        ELSIF curState=A THEN
+          txData <= txData_a;
+          txNow <= txNow_a;
+        ELSIF curState=L THEN
+          txData <= txData_l;
+          txNow <= txNow_l;
+        ELSIF curState=P THEN
+          txData <= txData_p;
+          txNow <= txNow_p;
+        ELSE
+          rxDone <= '0';
+          txData <= "00000000";
+          txNow <= '0';
+        END IF;
+      END PROCESS;
+      
+    assign_rx: PROCESS(curState, rxDone_main, rxDone_a)
+      BEGIN
+        IF curState=A THEN
+          rxDone <= rxDone_a;
+        ELSE
+          rxDone <= rxDone_main;
+        END IF;
+      END PROCESS;
+    
     seq_input: PROCESS(CLK)
     BEGIN
         IF CLK'EVENT AND CLK='1' THEN
@@ -207,8 +240,9 @@ BEGIN
         enP <= '0';
         enL <= '0';
         en <= '0';
+        rxDone_main <= '0';
         IF curState = VALID THEN 
-            rxdone <= '1';
+            rxDone_main <= '1';
             dataIn <= rxData_reg;
             -- Set printer enable high for 1 clock cycle if going into printing state
             IF (rxData_reg = "01000001" OR rxData_reg = "01100001") OR 
