@@ -38,14 +38,7 @@ architecture Behavioral of dataConsume is
   signal curr_state, next_state: state_type;
 
   signal last_ctrlIn : std_logic := '0';
-  signal last_ctrlIn_reg : std_logic := '0';
-  signal ctrlOut_reg: std_logic := '0';
-  signal ctrlIn_detected: std_logic := '0';
---  signal ctrlIn_detected_enable: boolean := FALSE;
-  signal ctrlIn_last_enable: boolean := FALSE;
-  signal ctrlIn_detect_enable: boolean := FALSE;
-  signal ctrlOut_enable: boolean := FALSE;
-
+  signal ctrlOut_internal: std_logic := '0';
   
   signal BCD2int_enable: boolean := FALSE;
   signal numWords_int: integer := 0;
@@ -67,7 +60,7 @@ architecture Behavioral of dataConsume is
 
   ---------------------------------------------------------------  PROCESSES  ---------------------------------------------------------
   begin
-  
+    
   -- Process to transform 3-bit BCD array into an integer
   BCDToInteger: process(clk, BCD2int_enable, numWords_bcd)
   begin
@@ -203,27 +196,11 @@ end process;
   CtrlInRegister: process(clk)
   begin
     if rising_edge(clk) then
-      if ctrlIn_last_enable or ctrlIn_detect_enable then
-          report "UPDATE LAST CONTROL IN" severity note;
-          last_ctrlIn_reg <= ctrlIn;
-          ctrlIn_detected <= ctrlIn xor last_ctrlIn;
-          report "proc DETECTION VAL is " & std_logic'image(ctrlIn_detected);
-       end if;
+      --report "UPDATE LAST CONTROL IN" severity note;
+      last_ctrlIn <= ctrlIn;
     end if;
   end process;
-  
-  CtrlOutRegister: process(clk)
-  begin
-    if rising_edge(clk) then
-      if ctrlOut_enable then
-        ctrlOut_reg <= not ctrlOut_reg;
-      end if;
-    end if;
-  end process;
-  
-  last_ctrlIn <= last_ctrlIn_reg;
-  ctrlOut <= ctrlOut_reg;
-  
+
   ------------------------------------------------------  STATE MACHINE  --------------------------------------------------------------
   StateMachine: process(clk, reset)
   begin
@@ -241,7 +218,6 @@ end process;
       case curr_state is
         ------------------------------------------- S0 Idle State -------------------------------------------
         when S0 =>
-          report "STARTING S0" severity note;
           -- reset created structures
           BCD2int_enable <= FALSE;
           counter <= 0;
@@ -255,14 +231,6 @@ end process;
           max_index_bcd(1) <= (others => 'X');
           max_index_bcd(0) <= (others => 'X');
           store_data_result_enable <= FALSE;
-          
-          last_ctrlIn <= '0';
-          last_ctrlIn_reg <= '0';
-          ctrlOut_reg <= '0';
-          ctrlIn_detected <= '0';
-          ctrlIn_last_enable <= FALSE;
-          ctrlIn_detect_enable <= FALSE;
-          ctrlOut_enable <= FALSE;
 
           -- reset from the entity
           seqDone <= '0';
@@ -280,26 +248,19 @@ end process;
 
 
           if start = '1' then
+            report "STARTING S0" severity note;
             BCD2int_enable <= TRUE;
-            ctrlOut_enable <= TRUE;
-            
+            ctrlOut <= '0';
             report "GOING S1" severity note;
             next_state <= S1;
           else
-            report "STAYING IN S0" severity note;
             next_state <= S0;
           end if;
 
         ------------------------------------------- S1 Retrieving data from generator -------------------------------------------
         when S1 => 
           report "STARTING S1" severity note;
-          report "CTRLOUT IS " & std_logic'image(ctrlOut_reg);
-          ctrlIn_last_enable <= TRUE;
-          ctrlIn_detect_enable <= TRUE;
-          
-          if ctrlIn_detected = '1' then
-            ctrlOut_enable <= TRUE;
-            
+          if rising_edge(ctrlIn) then
             report "CONTROL IN FLIPPED" severity note;
             current_value <= signed(data);
             counter <= counter + 1;
@@ -307,7 +268,6 @@ end process;
             report "GOING S2" severity note;
             next_state <= S2;
           else
-            report "REPEATING S1" severity note;
             next_state <= S1;
           end if;
         ------------------------------------------- S2 Process data bytes -------------------------------------------
@@ -320,7 +280,7 @@ end process;
             next_state <= S3;
           else
             report "GOING TO S1 FROM S2" severity note;
-            ctrlOut <= not ctrlOut_reg; -- Toggle ctrlOut to request the next word
+            ctrlOut <= not ctrlOut_internal; -- Toggle ctrlOut to request the next word
             compare_enable <= FALSE; -- Reset peak detection for the next byte
             next_state <= S1;
           end if;
