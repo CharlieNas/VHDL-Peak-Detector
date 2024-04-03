@@ -46,45 +46,60 @@ architecture Behavioral of dataConsume is
 
 begin
 
-  ctrlIn_edge_detect: process(clk)
+  ctrlIn_edge_detect: process(clk, reset)
   begin
-    if rising_edge(clk) then
+  if rising_edge(clk) then
+    if reset = '1' then
+      edge_detected_ctrlIn <= '0';
+      prev_ctrlIn <= '0';
+    else
       edge_detected_ctrlIn <= ctrlIn XOR prev_ctrlIn;
       prev_ctrlIn <= ctrlIn;
     end if;
+  end if;
   end process;
 
-  ctrlOut_toggle: process(clk, reset)
+  ctrlOut_toggle: process(clk)
   begin
-    if rising_edge(clk) then
-      if start = '1' or edge_detected_ctrlIn = '1' then
+  if rising_edge(clk) then
+    if reset = '1' then
+      ctrlOut_state <= '0';
+    elsif start = '1' or edge_detected_ctrlIn = '1' then
         ctrlOut_state <= not ctrlOut_state;
-      end if;
     end if;
-    ctrlOut <= ctrlOut_state;
+    ctrlOut <= ctrlOut_state; --this was after this next end if, maybe still works
+  end if;
   end process;
 
-  BCDToInteger: process(clk, BCD2int_enable, numWords_bcd)
+  BCDToInteger: process(clk)
   begin
-    if BCD2int_enable then
+  if rising_edge(clk) then
+    if store_data_result_enable then -- when need to reset 
+      numWords_int <= 0;
+    elsif BCD2int_enable then
       numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
                       to_integer(unsigned(numWords_bcd(1))) * 10 + 
                       to_integer(unsigned(numWords_bcd(0))); 
     end if;
+  end if;
   end process;
 
   MaxIndexBCD: process(clk)
   begin
-    if rising_edge(clk) and max_index_bcd_enable then
+  if rising_edge(clk) then
+    if reset = '1' then
+      max_index_bcd <= (others => (others => '0'));
+    elsif max_index_bcd_enable then
       max_index_bcd(0)(3 downto 0) <= std_logic_vector(to_unsigned(peak_index mod 10, 4));
       max_index_bcd(1)(3 downto 0) <= std_logic_vector(to_unsigned((peak_index / 10) mod 10, 4));
       max_index_bcd(2)(3 downto 0) <= std_logic_vector(to_unsigned((peak_index / 100) mod 10, 4));
     end if;
+  end if;
   end process;
 
   StoreInDataResult: process(clk)
   begin
-    if store_data_result_enable then
+    if store_data_result_enable then -- does it need to be reset?
       dataResults(0) <= std_logic_vector(currentBytes(0));
       dataResults(1) <= std_logic_vector(currentBytes(1));
       dataResults(2) <= std_logic_vector(currentBytes(2));
@@ -98,7 +113,13 @@ begin
   PeakDetection: process(clk)
   begin
       if rising_edge(clk) then
-          if compare_enable then
+        if reset = '1' then
+          peak_value <= (others => '0');
+          peak_index <= 0;
+          peak_found <= 0;
+          currentBytes <= (others => (others => '0'));
+          lastThreeBytes <= (others => (others => '0'));
+        elsif compare_enable then
               report "COMPARING PEAK DETECTOR" severity note;
               -- 1. Update buffer with next three values if peak was recent
               if peak_found > 0 then
@@ -147,7 +168,11 @@ begin
   ByteOutput: process(clk)
   begin
     if rising_edge(clk) then
-      byte <= data;
+      if reset = '1' then
+        byte <= (others => '0');
+      else 
+        byte <= data;
+      end if;
     end if;
   end process;
 
@@ -156,27 +181,7 @@ begin
     if rising_edge(clk) then
       if reset = '1' then
         curr_state <= S0;
-        prev_ctrlIn <= '0';
-        ctrlOut_state <= '0'; -- reseting output signal
-        edge_detected_ctrlIn <= '0';
-        -- Resetting internal signals to their initial values
-        BCD2int_enable <= FALSE;
-        numWords_int <= 0;
-        counter <= 0;
-        current_value <= (others => '0');
-        peak_value <= (others => '0');
-        compare_enable <= FALSE;
-        peak_index <= 0;
-        peak_found <= 0;
-        currentBytes <= (others => (others => '0'));
-        lastThreeBytes <= (others => (others => '0'));
-        max_index_bcd_enable <= FALSE;
-        -- max_index_bcd <= (others => (others => '0'));
-        -- Note: Might not want to reset max_index_bcd here 
-        store_data_result_enable <= FALSE;
-        -- Resetting output signals
-        seqDone <= '0';
-        dataReady <= '0';
+
       else
         curr_state <= next_state;
       end if;
@@ -187,26 +192,26 @@ begin
   begin
     case curr_state is
       when S0 =>
---        prev_ctrlIn <= '0';
---        ctrlOut_state <= '0'; -- reseting output signal
---        edge_detected_ctrlIn <= '0';
---        -- Resetting internal signals to their initial values
---        numWords_int <= 0;
---        counter <= 0;
---        current_value <= (others => '0');
---        peak_value <= (others => '0');
---        compare_enable <= FALSE;
---        peak_index <= 0;
---        peak_found <= 0;
---        currentBytes <= (others => (others => '0'));
---        lastThreeBytes <= (others => (others => '0'));
---        max_index_bcd_enable <= FALSE;
---        -- max_index_bcd <= (others => (others => '0'));
---        -- Note: Might not want to reset max_index_bcd here 
---        store_data_result_enable <= FALSE;
---        -- Resetting output signals
---        seqDone <= '0';
---        dataReady <= '0'; 
+        -- prev_ctrlIn <= '0';
+        -- ctrlOut_state <= '0'; -- reseting output signal
+        -- edge_detected_ctrlIn <= '0';
+        -- Resetting internal signals to their initial values
+        -- numWords_int <= 0;
+        counter <= 0;
+        current_value <= (others => '0');
+        peak_value <= (others => '0');
+        compare_enable <= FALSE;
+        --peak_index <= 0; -- in PeakDetection
+        --peak_found <= 0;
+        --currentBytes <= (others => (others => '0'));
+        --lastThreeBytes <= (others => (others => '0'));
+        max_index_bcd_enable <= FALSE;
+        -- max_index_bcd <= (others => (others => '0'));
+        -- Note: Might not want to reset max_index_bcd here 
+        store_data_result_enable <= FALSE;
+        -- Resetting output signals
+        seqDone <= '0';
+        dataReady <= '0';
       
         if start = '1' then
           BCD2int_enable <= TRUE;
@@ -220,6 +225,7 @@ begin
           report "CONTROL IN FLIPPED" severity note;
           current_value <= signed(data);
           counter <= counter + 1;
+          dataReady <= '1';
           compare_enable <= TRUE;
           next_state <= S2;
         else
@@ -243,6 +249,8 @@ begin
         store_data_result_enable <= TRUE;
         maxIndex <= max_index_bcd;
         seqDone <= '1';
+        -- numWords_int <= 0;
+        BCD2int_enable <= FALSE;
         next_state <= S0;
 
       when others =>
