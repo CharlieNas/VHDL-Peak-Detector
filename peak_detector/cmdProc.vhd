@@ -151,14 +151,6 @@ BEGIN
                 ELSE 
                     nextState <= INIT;
                 END IF;
-            WHEN PRINT_P => 
-                IF finished = '1' THEN
-                    nextState <= CARRIAGE_RETURN;
-                END IF;
-            WHEN PRINT_L => 
-                IF finished = '1' THEN
-                    nextState <= CARRIAGE_RETURN;
-                END IF;
             WHEN CARRIAGE_RETURN =>
                 IF finished = '1' THEN
                     nextState <= LINE_FEED;
@@ -215,6 +207,14 @@ BEGIN
                 ELSE
                     nextState <= L;
                 END IF;
+            WHEN PRINT_P => 
+                IF finished = '1' THEN
+                    nextState <= CARRIAGE_RETURN;
+                END IF;
+            WHEN PRINT_L => 
+                IF finished = '1' THEN
+                    nextState <= CARRIAGE_RETURN;
+                END IF;
             WHEN OTHERS =>
                 nextState <= INIT;
         END CASE;
@@ -253,7 +253,7 @@ BEGIN
             ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
                 N_reg <= "011";
             ELSIF curState /= ECHO THEN
-                N_reg <= "111";
+                N_reg <= "111"; ----------------------------------------------------- 
             END IF;
             rxDone <= '1';
             en <= '1';
@@ -277,7 +277,7 @@ BEGIN
                 numWords_bcd <= NNN;
             END IF;
         ELSIF curState = SPACE THEN
-            dataIn <= "00000000";
+            dataIn <= "00100000";
             en <= '1';
             start <= '1';
         ELSIF curState = DATAPROC THEN
