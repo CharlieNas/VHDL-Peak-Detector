@@ -48,16 +48,13 @@ architecture arch of cmdProc is
     --signals for main:
     signal txnow_M: std_logic;
     signal txdata_M: std_logic_vector(7 downto 0);
-    --signals for A:
-    signal rxdone_A, txnow_A: std_logic;
-    signal txData_A: std_logic_vector(7 downto 0);
     --signals for P
     signal txdata_P: std_logic_vector(7 downto 0);
     signal txnow_P: std_logic;
     --signals for L
     signal txdata_L: std_logic_vector(7 downto 0);
     signal txnow_L: std_logic; 
-        
+
     ---------------------------
     -- Component Definitions
     ---------------------------
@@ -107,13 +104,15 @@ BEGIN
     command_P: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData_P, txNow_P, doneP);
     command_L: cmdL port map (clk, reset, enL, dataResults_reg, txdone, txData_L, txNow_L, doneL);
     
-    
-    assign_tx: PROCESS(curState, txNow_M, txNow_A, txNow_L, txNow_P, txData_M, txData_A, txData_L, txData_P, rxdone_a)
+    ---------------------------
+    --  Multiple driver control
+    ---------------------------
+    assign_tx: PROCESS(curState, txNow_M, txNow_L, txNow_P, txData_M, txData_L, txData_P)
     BEGIN          
-        IF curState=L THEN
+        IF curState = L THEN
             txData <= txData_L;
             txNow <= txNow_L;
-        ELSIF curState=P THEN
+        ELSIF curState = P THEN
             txData <= txData_P;
             txNow <= txNow_P;
         ELSE
@@ -330,7 +329,7 @@ BEGIN
                     ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
                         N_reg <= "011";
                     ELSE 
-                    N_reg <= "111";
+                        N_reg <= "111";
                     END IF;
                 END IF;
             WHEN N0 => -- Prep to echo input, fill N_reg depending on input, if digit input fill NNN
