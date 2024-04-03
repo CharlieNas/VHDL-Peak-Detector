@@ -29,18 +29,20 @@ entity cmdProc is
 end cmdProc;
 
 architecture arch of cmdProc is
-    type state_type is (INIT, VALID, PRINT_A, PRINT_P, PRINT_L, N2, N1, N0, ECHO, DATAPROC, STOREBYTE, HEX1, HEX2, SPACE, P, L, CARRIAGE_RETURN, LINE_FEED, WAIT1, WAIT2, WAIT3, WAIT4, STARTING);
+    type state_type is (INIT, RESTART, VALID, PRINT_A, PRINT_P, PRINT_L, N2, N1, N0, ECHO, WAIT_CARRIAGE, CARRIAGE_RETURN, WAIT_LINE, LINE_FEED, STARTING, DATAPROC, PREP_HEX1, HEX1, PREP_HEX2, HEX2, PREP_SPACE, SPACE, P, L);
     signal curState, nextState: state_type; 
     signal enP, enL, en: std_logic; 
     signal doneP, doneL, finished: std_logic;
     signal seq_Available: std_logic;
-    signal rxnow_reg, txdone_reg, dataReady_reg, seqDone_reg: std_logic;
+    -- Registered INPUTS
+    signal rxNow_reg, txDone_reg, dataReady_reg, seqDone_reg: std_logic;
     signal rxData_reg, byte_reg, dataIn: std_logic_vector (7 downto 0);
     signal maxIndex_reg: BCD_ARRAY_TYPE(2 downto 0);  
     signal dataResults_reg: CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);
-    signal direction_reg: std_logic;
-    signal route_reg: std_logic_vector (1 downto 0);
-    signal N_reg: std_logic_vector (2 downto 0);
+    -- Pathway registers
+    signal direction_reg: std_logic; -- Going into or out of P/L
+    signal route_reg: std_logic_vector (1 downto 0); -- Going into A/P/L
+    signal N_reg: std_logic_vector (2 downto 0); -- CAme from A, N2, N1 or N0
     SIGNAL NNN: BCD_ARRAY_TYPE(2 DOWNTO 0);
     SIGNAL storedByte: UNSIGNED(7 DOWNTO 0);
     --signals for main:
@@ -54,7 +56,8 @@ architecture arch of cmdProc is
     signal txnow_P: std_logic;
     --signals for L
     signal txdata_L: std_logic_vector(7 downto 0);
-    signal txnow_L: std_logic;     
+    signal txnow_L: std_logic; 
+        
     ---------------------------
     -- Component Definitions
     ---------------------------
@@ -119,19 +122,29 @@ BEGIN
         END IF;
     END PROCESS;
     
+
     ---------------------------
     -- Combinatorial Inputs
     ---------------------------
     combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneL, doneP, finished, dataReady_reg)
     BEGIN
         CASE curState is
-            WHEN INIT =>
-                IF rxnow_reg = '1' THEN
+            ---------------------------------------------------------------------------------
+            -- Central FSM
+            ---------------------------------------------------------------------------------
+            WHEN RESTART => -- Wait for printing after invalid input
+                IF finished = '1' THEN 
+                    nextState <= INIT;
+                ELSE 
+                    nextState <= RESTART;
+                END IF;
+            WHEN INIT => -- Wait for rxNow to give valid rx input
+                IF rxNow_reg = '1' THEN
                     nextState <= VALID;
                 ELSE 
                     nextState <= INIT;
                 END IF; 
-            WHEN VALID =>
+            WHEN VALID => -- Check if A/P/L or otherwise restart
                 IF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN
                     nextState <= PRINT_A;
                 ELSIF (rxData_reg = "01010000" OR rxData_reg = "01110000") and seq_Available = '1' THEN
@@ -139,214 +152,135 @@ BEGIN
                 ELSIF (rxData_reg = "01001100" OR rxData_reg = "01101100") and seq_Available = '1' THEN
                     nextState <= PRINT_L;
                 ELSE 
-                    nextState <= INIT;
-                END IF; 
-            WHEN PRINT_A => 
+                    nextState <= RESTART;
+                END IF;
+            ---------------------------------------------------------------------------------
+            -- A command Inputs
+            ---------------------------------------------------------------------------------
+            WHEN PRINT_A => -- Wait for A to print
                 IF finished = '1' THEN
                     nextState <= N2;
                 END IF;
-            WHEN N2 => 
+            WHEN N2 => -- Wait for next input
                 IF rxnow_reg = '1' THEN
                     nextState <= ECHO;
                 ELSE
                     nextState <= N2;
                 END IF;
-            WHEN N1 => 
+            WHEN N1 => -- Wait for next input
                 IF rxnow_reg = '1' THEN
                     nextState <= ECHO;
                 ELSE
                     nextState <= N1;
                 END IF;
-            WHEN N0 => 
+            WHEN N0 => -- Wait for next input
                 IF rxnow_reg = '1' THEN
                     nextState <= ECHO;
                 ELSE
                     nextState <= N0;
                 END IF;
-            WHEN ECHO =>
+            WHEN ECHO => -- Wait for printing and pick route depending on N_reg
                 IF finished = '1' and N_reg = "000" THEN -- Came from N2 and digit
                     nextState <= N1;
                 ELSIF finished = '1' and N_reg = "001" THEN -- Came from N1 and digit
                     nextState <= N0;
                 ELSIF finished = '1' and N_reg = "010" THEN -- Came from N0 and digit
-                    nextState <= WAIT1;
+                    nextState <= WAIT_CARRIAGE;
                 ELSIF finished = '1' and N_reg = "011" THEN -- Recvieved another A
-                    nextState <= PRINT_A;
+                    nextState <= N2;
                 ELSIF finished = '0' THEN
                     nextState <= ECHO;
                 ELSE 
                     nextState <= INIT;
                 END IF;
-            WHEN WAIT1 =>
+            ---------------------------------------------------------------------------------
+            -- Carriage Return and Line Feed
+            ---------------------------------------------------------------------------------
+            WHEN WAIT_CARRIAGE => -- Prep printing for carriage return
                 nextState <= CARRIAGE_RETURN;
-            WHEN CARRIAGE_RETURN =>
+            WHEN CARRIAGE_RETURN => -- Wait for carriage return to print
                 IF finished = '1' THEN
-                    nextState <= WAIT2;
+                    nextState <= WAIT_LINE;
                 END IF;
-            WHEN WAIT2 =>
+            WHEN WAIT_LINE => -- Prep printing for line feed
                 nextState <= LINE_FEED;
-            WHEN LINE_FEED =>
+            WHEN LINE_FEED => -- Wait for line feed to print
                 IF finished = '1' AND route_reg = "00" AND direction_reg = '0' THEN
                     nextState <= P;
                 ELSIF finished = '1' AND route_reg = "01" AND direction_reg = '0' THEN
                     nextState <= L;
-                ELSIF finished = '1' AND route_reg = "10" AND direction_reg = '0' THEN
+                ELSIF finished = '1' AND route_reg = "10"  THEN
                     nextState <= STARTING;
                 ELSIF finished = '1' AND direction_reg = '1' THEN
                     nextState <= INIT;
                 END IF;
-            WHEN STARTING =>
+            ---------------------------------------------------------------------------------
+            -- Data Processor communication and bytes printed
+            ---------------------------------------------------------------------------------
+            WHEN STARTING => -- Set start and numWords
                 nextState <= DATAPROC;
-            WHEN DATAPROC =>
+            WHEN DATAPROC => -- Wait for data from data Processor
                 IF dataReady_reg='1' THEN
-                  nextState <= STOREBYTE;
+                  nextState <= PREP_HEX1;
                 ELSE
                   nextState <= DATAPROC;
                 END IF; 
-            WHEN STOREBYTE =>
+            WHEN PREP_HEX1 => -- Prep printing for first Hex Digit
                 nextState <= HEX1; 
-            WHEN HEX1 =>
+            WHEN HEX1 => -- Wait for printing for first Hex Digit
                 IF finished ='1' THEN
-                  nextState <= WAIT3;
+                  nextState <= PREP_HEX2;
                 ELSE
                   nextState <= HEX1;
                 END IF;
-            WHEN WAIT3 =>
+            WHEN PREP_HEX2 => -- Prep printing for first Hex Digit
                 nextState <= HEX2;
-            WHEN HEX2 =>
+            WHEN HEX2 => -- Wait for printing for second Hex Digit
                 IF finished ='1' THEN
                     IF seq_Available ='1' THEN ----------------------------------------------------- 
                         nextState <= INIT;
                     ELSE
-                        nextState <= WAIT4;
+                        nextState <= PREP_SPACE;
                     END IF;
                 ELSE
                   nextState <= HEX2;
                 END IF;
-            WHEN WAIT4 =>
+            WHEN PREP_SPACE => -- Prep printing for space
                 nextState <= SPACE;
-            WHEN SPACE =>
+            WHEN SPACE => -- Wait for space to be printed
                 IF finished ='1' THEN
                     nextState <= STARTING;
                 ELSE
                     nextState <= SPACE;
                 END IF;
+            ---------------------------------------------------------------------------------
+            -- P and L commands
+            ---------------------------------------------------------------------------------
             WHEN P => 
                 IF doneP = '1' THEN
-                    nextState <= CARRIAGE_RETURN;
+                    nextState <= WAIT_CARRIAGE;
                 ELSE
                     nextState <= P;
                 END IF;
             WHEN L => 
                 IF doneL = '1' THEN
-                    nextState <= CARRIAGE_RETURN;
+                    nextState <= WAIT_CARRIAGE;
                 ELSE
                     nextState <= L;
                 END IF;
             WHEN PRINT_P => 
                 IF finished = '1' THEN
-                    nextState <= CARRIAGE_RETURN;
+                    nextState <= WAIT_CARRIAGE;
                 END IF;
             WHEN PRINT_L => 
                 IF finished = '1' THEN
-                    nextState <= CARRIAGE_RETURN;
+                    nextState <= WAIT_CARRIAGE;
                 END IF;
             WHEN OTHERS =>
                 nextState <= INIT;
         END CASE;
     END PROCESS;
 
-    -- ---------------------------
-    -- -- Combinatorial Outputs
-    -- ---------------------------
-    -- combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg, N_reg, storedByte)
-    -- BEGIN
-    --     enP <= '0';
-    --     enL <= '0';
-    --     en <= '0';
-    --     rxDone <= '0';
-    --     start <= '0';
-    --     IF curState = VALID THEN 
-    --         dataIn <= rxData_reg;
-    --         en <= '1';
-    --         rxDone <= '1';
-    --     ELSIF rxnow_reg = '1' THEN  
-    --         dataIn <= rxData_reg;
-    --         IF curState = N2 AND rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
-    --             N_reg <= "000";
-    --             NNN(2) <= rxData_reg(3 downto 0);
-    --         ELSIF curState = N1 AND rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
-    --             N_reg <= "001";
-    --             NNN(1) <= rxData_reg(3 downto 0);
-    --         ELSIF curState = N0 AND rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
-    --             N_reg <= "010";
-    --             NNN(0) <= rxData_reg(3 downto 0);
-    --         ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
-    --             N_reg <= "011";
-    --         ELSIF curState /= ECHO THEN -- Otherwise will change to go back to INIT
-    --             N_reg <= "111"; 
-    --         END IF;
-    --         rxDone <= '1';
-    --         en <= '1';
-    --     ELSIF curState = ECHO THEN
-    --         IF finished = '1' and N_reg = "010" THEN -- Came from N0 and digit
-    --             dataIn <= "00001101";
-    --             en <= '1';
-    --         END IF;
-    --     ELSIF curState = PRINT_P THEN
-    --         route_reg <= "00";
-    --         direction_reg <= '0';
-    --     ELSIF curState = PRINT_L THEN
-    --         route_reg <= "01";
-    --         direction_reg <= '0';
-    --     ELSIF curState = PRINT_A THEN 
-    --         route_reg <= "10";
-    --         direction_reg <= '0';
-    --     ELSIF curState = CARRIAGE_RETURN THEN
-    --         dataIn <= "00001010";
-    --         en <= '1';
-    --     ELSIF curState = LINE_FEED THEN
-    --         IF N_reg = "010" THEN
-    --             start <= '1'; 
-    --             numWords_bcd <= NNN;
-    --         END IF;
-    --     ELSIF curState = SPACE THEN
-    --         dataIn <= "00100000";
-    --         en <= '1';
-    --         start <= '1';
-    --     ELSIF curState = DATAPROC THEN
-    --         IF dataReady_reg='1' THEN
-    --             storedByte <= UNSIGNED(byte_reg);
-    --         END IF;
-    --     ELSIF curState = STOREBYTE THEN
-    --         IF storedByte(7 DOWNTO 4) >= "1010" AND storedByte(7 DOWNTO 4) <= "1111" THEN
-    --             dataIn <= STD_LOGIC_VECTOR(storedByte(7 DOWNTO 4) + "00110111");
-    --         ELSE
-    --             dataIn <= STD_LOGIC_VECTOR(storedByte(7 DOWNTO 4) + "00110000");
-    --         END IF;
-    --         en <= '1';
-    --     ELSIF curState = HEX1 THEN
-    --         IF finished ='1' THEN
-    --             IF storedByte(3 DOWNTO 0) >= "1010" AND storedByte(3 DOWNTO 0) <= "1111" THEN
-    --                 dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110111");
-    --             ELSE
-    --                 dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110000");
-    --             END IF;
-    --             en <= '1';
-    --         END IF;
-    --     ELSIF curState = HEX2 THEN
-    --         IF finished ='1' AND seqDone_reg /= '1' THEN
-    --             dataIN <= "00100000";
-    --             en <= '1';
-    --         END IF; 
-    --     ELSIF curState = P THEN 
-    --         enP <= '1';
-    --         direction_reg <= '1';
-    --     ELSIF curState = L THEN 
-    --         enL <= '1';
-    --         direction_reg <= '1';
-    --     END IF;
-    -- END PROCESS;
 
     ---------------------------
     -- Combinatorial Outputs
@@ -359,14 +293,19 @@ BEGIN
         rxDone <= '0';
         start <= '0';
         CASE curState is
-            WHEN VALID =>
+            ---------------------------------------------------------------------------------
+            -- Central FSM
+            ---------------------------------------------------------------------------------
+            WHEN VALID => -- Prep to echo initial input
                 dataIn <= rxData_reg;
                 en <= '1';
                 rxDone <= '1';
-            WHEN PRINT_A => 
+            ---------------------------------------------------------------------------------
+            -- A command Inputs
+            ---------------------------------------------------------------------------------
+            WHEN PRINT_A => -- Route is into A
                 route_reg <= "10";
-                direction_reg <= '0';
-            WHEN N2 =>
+            WHEN N2 => -- Prep to echo input, fill N_reg depending on input, if digit input fill NNN
                 IF rxnow_reg = '1' THEN 
                     dataIn <= rxData_reg;
                     rxDone <= '1';
@@ -380,7 +319,7 @@ BEGIN
                         N_reg <= "111";
                     END IF;
                 END IF;
-            WHEN N1 => 
+            WHEN N1 => -- Prep to echo input, fill N_reg depending on input, if digit input fill NNN
                 IF rxnow_reg = '1' THEN 
                     dataIn <= rxData_reg;
                     rxDone <= '1';
@@ -394,7 +333,7 @@ BEGIN
                     N_reg <= "111";
                     END IF;
                 END IF;
-            WHEN N0 => 
+            WHEN N0 => -- Prep to echo input, fill N_reg depending on input, if digit input fill NNN
                 IF rxnow_reg = '1' THEN 
                     dataIn <= rxData_reg;
                     rxDone <= '1';
@@ -408,42 +347,49 @@ BEGIN
                         N_reg <= "111";
                     END IF;
                 END IF;
-            WHEN WAIT1 =>
-                IF N_reg = "010" THEN -- Came from N0 and digit
-                    dataIn <= "00001101";
-                    en <= '1';
-                END IF;
-            WHEN WAIT2 =>
+            ---------------------------------------------------------------------------------
+            -- Carriage Return and Line Feed
+            ---------------------------------------------------------------------------------
+            WHEN WAIT_CARRIAGE => -- Prep printing for carriage return
+                dataIn <= "00001101";
+                en <= '1';
+            WHEN WAIT_LINE => -- Prep printing for line feed
                 dataIn <= "00001010";
                 en <= '1';
-            WHEN STARTING =>
+            ---------------------------------------------------------------------------------
+            -- Data Processor communication and bytes printed
+            ---------------------------------------------------------------------------------
+            WHEN STARTING => -- Set start and numWords
                 IF N_reg = "010" THEN
                     start <= '1'; 
                     numWords_bcd <= NNN;
                 END IF;
-            WHEN DATAPROC =>
+            WHEN DATAPROC => -- Store byte once received
                 IF dataReady_reg='1' THEN
                     storedByte <= UNSIGNED(byte_reg);
                 END IF;
-            WHEN STOREBYTE =>
+            WHEN PREP_HEX1 => -- Prep printing for first Hex Digit
                 IF storedByte(7 DOWNTO 4) >= "1010" AND storedByte(7 DOWNTO 4) <= "1111" THEN
                     dataIn <= STD_LOGIC_VECTOR(storedByte(7 DOWNTO 4) + "00110111");
                 ELSE
                     dataIn <= STD_LOGIC_VECTOR(storedByte(7 DOWNTO 4) + "00110000");
                 END IF;
                 en <= '1';
-            WHEN WAIT3 =>   
+            WHEN PREP_HEX2 => -- Prep printing for second Hex Digit  
                 IF storedByte(3 DOWNTO 0) >= "1010" AND storedByte(3 DOWNTO 0) <= "1111" THEN
                     dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110111");
                 ELSE
                     dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110000");
                 END IF;
                 en <= '1';
-            WHEN WAIT4 =>
+            WHEN PREP_SPACE => -- Prep printing for space
                 IF seqDone_reg /= '1' THEN
                     dataIN <= "00100000";
                     en <= '1';
                 END IF; 
+            ---------------------------------------------------------------------------------
+            -- P and L commands
+            ---------------------------------------------------------------------------------
             WHEN P => 
                 enP <= '1';
                 direction_reg <= '1';
