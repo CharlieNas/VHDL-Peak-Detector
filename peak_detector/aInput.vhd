@@ -103,7 +103,9 @@ BEGIN
         END IF;
         
       WHEN READY =>
-        IF rxNow_reg='1' THEN
+        IF ovErr_reg='1' OR framErr_reg='1' THEN
+          nextState <= READY;
+        ELSIF rxNow_reg='1' THEN
           nextState <= ECHO;
         ELSE
           nextState <= READY;
@@ -134,7 +136,7 @@ BEGIN
     
     CASE curState IS
       WHEN READY =>
-        IF rxNow_reg='1' THEN
+        IF NOT(ovErr_reg='1' OR framErr_reg='1') AND rxNow_reg='1' THEN
           enN <= '1';
           dataPrint <= rxData_reg;
           enPrint <= '1';
