@@ -223,7 +223,7 @@ BEGIN
     ---------------------------
     -- Combinatorial Outputs
     ---------------------------
-    combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg)
+    combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg, N_reg, storedByte)
     BEGIN
         enP <= '0';
         enL <= '0';
@@ -257,12 +257,6 @@ BEGIN
             END IF;
             rxDone <= '1';
             en <= '1';
-        ELSIF curState = P THEN 
-            enP <= '1';
-            direction_reg <= '1';
-        ELSIF curState = L THEN 
-            enL <= '1';
-            direction_reg <= '1';
         ELSIF curState = PRINT_P THEN
             route_reg <= "00";
             direction_reg <= '0';
@@ -307,12 +301,16 @@ BEGIN
                 en <= '1';
             END IF;
         ELSIF curState = HEX2 THEN
-            IF finished ='1' THEN
-                IF seqDone_reg /= '1' THEN
-                    dataIN <= "00100000";
-                    en <= '1';
-                END IF;
+            IF finished ='1' AND seqDone_reg /= '1' THEN
+                dataIN <= "00100000";
+                en <= '1';
             END IF; 
+        ELSIF curState = P THEN 
+            enP <= '1';
+            direction_reg <= '1';
+        ELSIF curState = L THEN 
+            enL <= '1';
+            direction_reg <= '1';
         END IF;
     END PROCESS;
 
