@@ -23,25 +23,25 @@ END dataConsume;
 architecture Behavioral of dataConsume is
   type state_type is (S0, S1, S2, S3);
   type signed_array is array (integer range <>) of signed(7 downto 0);
-
-  signal curr_state, next_state: state_type;
+  
+  signal curr_state, next_state: state_type := S0;
   signal prev_ctrlIn, ctrlOut_state: std_logic := '0';
   signal edge_detected_ctrlIn: std_logic := '0';
-
+   
   signal BCD2int_enable: boolean := FALSE;
   signal numWords_int: integer := 0;
   signal counter: integer := 0;
-
+    
   signal current_value: signed(7 downto 0) := (others => '0');
   signal peak_value: signed(7 downto 0) := (others => '0');
   signal compare_enable: boolean := FALSE;
   signal peak_index: integer := 0;
   signal peak_found: integer := 0;
-  signal currentBytes: signed_array(0 to 6);
-  signal lastThreeBytes: signed_array(0 to 2);
-
+  signal currentBytes: signed_array(0 to 6) := (others => (others => '0'));
+  signal lastThreeBytes: signed_array(0 to 2) := (others => (others => '0'));
+    
   signal max_index_bcd_enable: boolean := FALSE;
-  signal max_index_bcd: BCD_ARRAY_TYPE(2 downto 0); 
+  signal max_index_bcd: BCD_ARRAY_TYPE(2 downto 0) := (others => (others => '0'));
   signal store_data_result_enable: boolean := FALSE;
 
 begin
@@ -57,9 +57,7 @@ begin
   ctrlOut_toggle: process(clk, reset)
   begin
     if rising_edge(clk) then
-      if reset = '1' then
-        ctrlOut_state <= '0';
-      elsif start = '1' or edge_detected_ctrlIn = '1' then
+      if start = '1' or edge_detected_ctrlIn = '1' then
         ctrlOut_state <= not ctrlOut_state;
       end if;
     end if;
@@ -158,6 +156,27 @@ begin
     if rising_edge(clk) then
       if reset = '1' then
         curr_state <= S0;
+        prev_ctrlIn <= '0';
+        ctrlOut_state <= '0'; -- reseting output signal
+        edge_detected_ctrlIn <= '0';
+        -- Resetting internal signals to their initial values
+        BCD2int_enable <= FALSE;
+        numWords_int <= 0;
+        counter <= 0;
+        current_value <= (others => '0');
+        peak_value <= (others => '0');
+        compare_enable <= FALSE;
+        peak_index <= 0;
+        peak_found <= 0;
+        currentBytes <= (others => (others => '0'));
+        lastThreeBytes <= (others => (others => '0'));
+        max_index_bcd_enable <= FALSE;
+        -- max_index_bcd <= (others => (others => '0'));
+        -- Note: Might not want to reset max_index_bcd here 
+        store_data_result_enable <= FALSE;
+        -- Resetting output signals
+        seqDone <= '0';
+        dataReady <= '0';
       else
         curr_state <= next_state;
       end if;
@@ -168,6 +187,27 @@ begin
   begin
     case curr_state is
       when S0 =>
+--        prev_ctrlIn <= '0';
+--        ctrlOut_state <= '0'; -- reseting output signal
+--        edge_detected_ctrlIn <= '0';
+--        -- Resetting internal signals to their initial values
+--        numWords_int <= 0;
+--        counter <= 0;
+--        current_value <= (others => '0');
+--        peak_value <= (others => '0');
+--        compare_enable <= FALSE;
+--        peak_index <= 0;
+--        peak_found <= 0;
+--        currentBytes <= (others => (others => '0'));
+--        lastThreeBytes <= (others => (others => '0'));
+--        max_index_bcd_enable <= FALSE;
+--        -- max_index_bcd <= (others => (others => '0'));
+--        -- Note: Might not want to reset max_index_bcd here 
+--        store_data_result_enable <= FALSE;
+--        -- Resetting output signals
+--        seqDone <= '0';
+--        dataReady <= '0'; 
+      
         if start = '1' then
           BCD2int_enable <= TRUE;
           next_state <= S1;
@@ -187,10 +227,11 @@ begin
         end if;
 
       when S2 =>
-        report "STATE S2" severity note;
+        report "STATE S2, Counter: " & integer'image(counter) & " NumWords_Int: " & integer'image(numWords_int) severity note;
         if counter = numWords_int then
           report "COUNTER === NUMBER OF WORDS" severity note;
           compare_enable <= FALSE;
+          max_index_bcd_enable <= TRUE;
           next_state <= S3;
         else
           next_state <= S1;
@@ -198,8 +239,9 @@ begin
 
       when S3 =>
         report "STATE S3" severity note;
-        max_index_bcd_enable <= TRUE;
+        
         store_data_result_enable <= TRUE;
+        maxIndex <= max_index_bcd;
         seqDone <= '1';
         next_state <= S0;
 
