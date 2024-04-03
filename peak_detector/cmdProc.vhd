@@ -158,7 +158,7 @@ BEGIN
                     nextState <= N1;
                 END IF;
             WHEN N0 => 
-                IF rxnow_reg = '1' AND rxData_reg >= "00110000" AND rxData_reg <= "00111001" THEN
+                IF rxnow_reg = '1' THEN
                     nextState <= ECHO;
                 ELSE
                     nextState <= N0;
@@ -246,6 +246,98 @@ BEGIN
         END CASE;
     END PROCESS;
 
+    -- ---------------------------
+    -- -- Combinatorial Outputs
+    -- ---------------------------
+    -- combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg, N_reg, storedByte)
+    -- BEGIN
+    --     enP <= '0';
+    --     enL <= '0';
+    --     en <= '0';
+    --     rxDone <= '0';
+    --     start <= '0';
+    --     IF curState = VALID THEN 
+    --         dataIn <= rxData_reg;
+    --         en <= '1';
+    --         rxDone <= '1';
+    --     ELSIF rxnow_reg = '1' THEN  
+    --         dataIn <= rxData_reg;
+    --         IF curState = N2 AND rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
+    --             N_reg <= "000";
+    --             NNN(2) <= rxData_reg(3 downto 0);
+    --         ELSIF curState = N1 AND rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
+    --             N_reg <= "001";
+    --             NNN(1) <= rxData_reg(3 downto 0);
+    --         ELSIF curState = N0 AND rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
+    --             N_reg <= "010";
+    --             NNN(0) <= rxData_reg(3 downto 0);
+    --         ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
+    --             N_reg <= "011";
+    --         ELSIF curState /= ECHO THEN -- Otherwise will change to go back to INIT
+    --             N_reg <= "111"; 
+    --         END IF;
+    --         rxDone <= '1';
+    --         en <= '1';
+    --     ELSIF curState = ECHO THEN
+    --         IF finished = '1' and N_reg = "010" THEN -- Came from N0 and digit
+    --             dataIn <= "00001101";
+    --             en <= '1';
+    --         END IF;
+    --     ELSIF curState = PRINT_P THEN
+    --         route_reg <= "00";
+    --         direction_reg <= '0';
+    --     ELSIF curState = PRINT_L THEN
+    --         route_reg <= "01";
+    --         direction_reg <= '0';
+    --     ELSIF curState = PRINT_A THEN 
+    --         route_reg <= "10";
+    --         direction_reg <= '0';
+    --     ELSIF curState = CARRIAGE_RETURN THEN
+    --         dataIn <= "00001010";
+    --         en <= '1';
+    --     ELSIF curState = LINE_FEED THEN
+    --         IF N_reg = "010" THEN
+    --             start <= '1'; 
+    --             numWords_bcd <= NNN;
+    --         END IF;
+    --     ELSIF curState = SPACE THEN
+    --         dataIn <= "00100000";
+    --         en <= '1';
+    --         start <= '1';
+    --     ELSIF curState = DATAPROC THEN
+    --         IF dataReady_reg='1' THEN
+    --             storedByte <= UNSIGNED(byte_reg);
+    --         END IF;
+    --     ELSIF curState = STOREBYTE THEN
+    --         IF storedByte(7 DOWNTO 4) >= "1010" AND storedByte(7 DOWNTO 4) <= "1111" THEN
+    --             dataIn <= STD_LOGIC_VECTOR(storedByte(7 DOWNTO 4) + "00110111");
+    --         ELSE
+    --             dataIn <= STD_LOGIC_VECTOR(storedByte(7 DOWNTO 4) + "00110000");
+    --         END IF;
+    --         en <= '1';
+    --     ELSIF curState = HEX1 THEN
+    --         IF finished ='1' THEN
+    --             IF storedByte(3 DOWNTO 0) >= "1010" AND storedByte(3 DOWNTO 0) <= "1111" THEN
+    --                 dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110111");
+    --             ELSE
+    --                 dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110000");
+    --             END IF;
+    --             en <= '1';
+    --         END IF;
+    --     ELSIF curState = HEX2 THEN
+    --         IF finished ='1' AND seqDone_reg /= '1' THEN
+    --             dataIN <= "00100000";
+    --             en <= '1';
+    --         END IF; 
+    --     ELSIF curState = P THEN 
+    --         enP <= '1';
+    --         direction_reg <= '1';
+    --     ELSIF curState = L THEN 
+    --         enL <= '1';
+    --         direction_reg <= '1';
+    --     END IF;
+    -- END PROCESS;
+
     ---------------------------
     -- Combinatorial Outputs
     ---------------------------
@@ -256,86 +348,112 @@ BEGIN
         en <= '0';
         rxDone <= '0';
         start <= '0';
-        IF curState = VALID THEN 
-            dataIn <= rxData_reg;
-            en <= '1';
-            rxDone <= '1';
-        ELSIF rxnow_reg = '1' THEN  
-            dataIn <= rxData_reg;
-            IF curState = N2 AND rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
-                N_reg <= "000";
-                NNN(2) <= rxData_reg(3 downto 0);
-            ELSIF curState = N1 AND rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
-                N_reg <= "001";
-                NNN(1) <= rxData_reg(3 downto 0);
-            ELSIF curState = N0 AND rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
-                N_reg <= "010";
-                NNN(0) <= rxData_reg(3 downto 0);
-            ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
-                N_reg <= "011";
-            ELSIF curState /= ECHO THEN -- Otherwise will change to go back to INIT
-                N_reg <= "111"; 
-            END IF;
-            rxDone <= '1';
-            en <= '1';
-        ELSIF curState = ECHO THEN
-            IF finished = '1' and N_reg = "010" THEN -- Came from N0 and digit
-                dataIn <= "00001101";
+        CASE curState is
+            WHEN VALID =>
+                dataIn <= rxData_reg;
                 en <= '1';
-            END IF;
-        ELSIF curState = PRINT_P THEN
-            route_reg <= "00";
-            direction_reg <= '0';
-        ELSIF curState = PRINT_L THEN
-            route_reg <= "01";
-            direction_reg <= '0';
-        ELSIF curState = PRINT_A THEN 
-            route_reg <= "10";
-            direction_reg <= '0';
-        ELSIF curState = CARRIAGE_RETURN THEN
-            dataIn <= "00001010";
-            en <= '1';
-        ELSIF curState = LINE_FEED THEN
-            IF N_reg = "010" THEN
-                start <= '1'; 
-                numWords_bcd <= NNN;
-            END IF;
-        ELSIF curState = SPACE THEN
-            dataIn <= "00100000";
-            en <= '1';
-            start <= '1';
-        ELSIF curState = DATAPROC THEN
-            IF dataReady_reg='1' THEN
-                storedByte <= UNSIGNED(byte_reg);
-            END IF;
-        ELSIF curState = STOREBYTE THEN
-            IF storedByte(7 DOWNTO 4) >= "1010" AND storedByte(7 DOWNTO 4) <= "1111" THEN
-                dataIn <= STD_LOGIC_VECTOR(storedByte(7 DOWNTO 4) + "00110111");
-            ELSE
-                dataIn <= STD_LOGIC_VECTOR(storedByte(7 DOWNTO 4) + "00110000");
-            END IF;
-            en <= '1';
-        ELSIF curState = HEX1 THEN
-            IF finished ='1' THEN
-                IF storedByte(3 DOWNTO 0) >= "1010" AND storedByte(3 DOWNTO 0) <= "1111" THEN
-                    dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110111");
+                rxDone <= '1';
+            WHEN PRINT_A => 
+                route_reg <= "10";
+                direction_reg <= '0';
+            WHEN N2 =>
+                IF rxnow_reg = '1' THEN 
+                    dataIn <= rxData_reg;
+                    rxDone <= '1';
+                    en <= '1';
+                    IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
+                        N_reg <= "000";
+                        NNN(2) <= rxData_reg(3 downto 0);
+                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
+                        N_reg <= "011";
+                    ELSE 
+                        N_reg <= "111";
+                    END IF;
+                END IF;
+            WHEN N1 => 
+                IF rxnow_reg = '1' THEN 
+                    dataIn <= rxData_reg;
+                    rxDone <= '1';
+                    en <= '1';
+                    IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
+                        N_reg <= "001";
+                        NNN(1) <= rxData_reg(3 downto 0);
+                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
+                        N_reg <= "011";
+                    ELSE 
+                    N_reg <= "111";
+                    END IF;
+                END IF;
+            WHEN N0 => 
+                IF rxnow_reg = '1' THEN 
+                    dataIn <= rxData_reg;
+                    rxDone <= '1';
+                    en <= '1';
+                    IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
+                        N_reg <= "010";
+                        NNN(0) <= rxData_reg(3 downto 0);
+                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
+                        N_reg <= "011";
+                    ELSE 
+                        N_reg <= "111";
+                    END IF;
+                END IF;
+            WHEN ECHO =>
+                IF finished = '1' and N_reg = "010" THEN -- Came from N0 and digit
+                    dataIn <= "00001101";
+                    en <= '1';
+                END IF;
+            WHEN CARRIAGE_RETURN =>
+                dataIn <= "00001010";
+                en <= '1';
+            WHEN LINE_FEED =>
+                IF N_reg = "010" THEN
+                    start <= '1'; 
+                    numWords_bcd <= NNN;
+                END IF;
+            WHEN DATAPROC =>
+                IF dataReady_reg='1' THEN
+                    storedByte <= UNSIGNED(byte_reg);
+                END IF;
+            WHEN STOREBYTE =>
+                IF storedByte(7 DOWNTO 4) >= "1010" AND storedByte(7 DOWNTO 4) <= "1111" THEN
+                    dataIn <= STD_LOGIC_VECTOR(storedByte(7 DOWNTO 4) + "00110111");
                 ELSE
-                    dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110000");
+                    dataIn <= STD_LOGIC_VECTOR(storedByte(7 DOWNTO 4) + "00110000");
                 END IF;
                 en <= '1';
-            END IF;
-        ELSIF curState = HEX2 THEN
-            IF finished ='1' AND seqDone_reg /= '1' THEN
-                dataIN <= "00100000";
+            WHEN HEX1 =>
+                IF finished ='1' THEN
+                    IF storedByte(3 DOWNTO 0) >= "1010" AND storedByte(3 DOWNTO 0) <= "1111" THEN
+                        dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110111");
+                    ELSE
+                        dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110000");
+                    END IF;
+                    en <= '1';
+                END IF;
+            WHEN HEX2 =>
+                IF finished ='1' AND seqDone_reg /= '1' THEN
+                    dataIN <= "00100000";
+                    en <= '1';
+                END IF; 
+            WHEN SPACE =>
+                dataIn <= "00100000";
                 en <= '1';
-            END IF; 
-        ELSIF curState = P THEN 
-            enP <= '1';
-            direction_reg <= '1';
-        ELSIF curState = L THEN 
-            enL <= '1';
-            direction_reg <= '1';
-        END IF;
+                start <= '1';
+            WHEN P => 
+                enP <= '1';
+                direction_reg <= '1';
+            WHEN L => 
+                enL <= '1';
+                direction_reg <= '1';
+            WHEN PRINT_P => 
+                route_reg <= "00";
+                direction_reg <= '0';
+            WHEN PRINT_L => 
+                route_reg <= "01";
+                direction_reg <= '0';
+            WHEN OTHERS =>
+        END CASE;
     END PROCESS;
 
     ---------------------------
