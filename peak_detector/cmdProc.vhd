@@ -232,13 +232,8 @@ BEGIN
         start <= '0';
         IF curState = VALID THEN 
             dataIn <= rxData_reg;
-            -- Set printer enable high for 1 clock cycle if going into printing state
-            IF (rxData_reg = "01000001" OR rxData_reg = "01100001") OR 
-               ((rxData_reg = "01010000" OR rxData_reg = "01110000") and seq_Available = '1') OR
-               ((rxData_reg = "01001100" OR rxData_reg = "01101100") and seq_Available = '1') THEN
-               en <= '1';
+            en <= '1';
             rxDone <= '1';
-            END IF;
         ELSIF rxnow_reg = '1' THEN  
             dataIn <= rxData_reg;
             IF curState = N2 AND rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
@@ -252,8 +247,8 @@ BEGIN
                 NNN(0) <= rxData_reg(3 downto 0);
             ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
                 N_reg <= "011";
-            ELSIF curState /= ECHO THEN
-                N_reg <= "111"; ----------------------------------------------------- 
+            ELSIF curState /= ECHO THEN -- Otherwise will change to go back to INIT
+                N_reg <= "111"; 
             END IF;
             rxDone <= '1';
             en <= '1';
