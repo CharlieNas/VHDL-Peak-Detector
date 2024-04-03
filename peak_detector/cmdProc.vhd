@@ -278,6 +278,11 @@ BEGIN
             END IF;
             rxDone <= '1';
             en <= '1';
+        ELSIF curState = ECHO THEN
+            IF finished = '1' and N_reg = "010" THEN -- Came from N0 and digit
+                dataIn <= "00001101";
+                en <= '1';
+            END IF;
         ELSIF curState = PRINT_P THEN
             route_reg <= "00";
             direction_reg <= '0';
@@ -288,11 +293,9 @@ BEGIN
             route_reg <= "10";
             direction_reg <= '0';
         ELSIF curState = CARRIAGE_RETURN THEN
-            dataIn <= "00001101";
-            en <= '1';
-        ELSIF curState = LINE_FEED THEN
             dataIn <= "00001010";
             en <= '1';
+        ELSIF curState = LINE_FEED THEN
             IF N_reg = "010" THEN
                 start <= '1'; 
                 numWords_bcd <= NNN;
