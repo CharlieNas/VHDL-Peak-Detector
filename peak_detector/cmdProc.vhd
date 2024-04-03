@@ -43,7 +43,18 @@ architecture arch of cmdProc is
     signal N_reg: std_logic_vector (2 downto 0);
     SIGNAL NNN: BCD_ARRAY_TYPE(2 DOWNTO 0);
     SIGNAL storedByte: UNSIGNED(7 DOWNTO 0);
-    
+    --signals for main:
+    signal txnow_M: std_logic;
+    signal txdata_M: std_logic_vector(7 downto 0);
+    --signals for A:
+    signal rxdone_A, txnow_A: std_logic;
+    signal txData_A: std_logic_vector(7 downto 0);
+    --signals for P
+    signal txdata_P: std_logic_vector(7 downto 0);
+    signal txnow_P: std_logic;
+    --signals for L
+    signal txdata_L: std_logic_vector(7 downto 0);
+    signal txnow_L: std_logic;     
     ---------------------------
     -- Component Definitions
     ---------------------------
@@ -89,9 +100,24 @@ architecture arch of cmdProc is
 
 
 BEGIN
-    print:     printer port map (clk, reset, en, dataIn, txDone, txData, txNow, finished);
-    command_P: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData, txNow, doneP);
-    command_L: cmdL port map (clk, reset, enL, dataResults_reg, txdone, txData, txNow, doneL);
+    print:     printer port map (clk, reset, en, dataIn, txDone, txData_M, txNow_M, finished);
+    command_P: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData_P, txNow_P, doneP);
+    command_L: cmdL port map (clk, reset, enL, dataResults_reg, txdone, txData_L, txNow_L, doneL);
+    
+    
+    assign_tx: PROCESS(curState, txNow_M, txNow_A, txNow_L, txNow_P, txData_M, txData_A, txData_L, txData_P, rxdone_a)
+    BEGIN          
+        IF curState=L THEN
+            txData <= txData_L;
+            txNow <= txNow_L;
+        ELSIF curState=P THEN
+            txData <= txData_P;
+            txNow <= txNow_P;
+        ELSE
+            txData <= txData_M;
+            txNow <= txNow_M;
+        END IF;
+    END PROCESS;
     
     ---------------------------
     -- Combinatorial Inputs
