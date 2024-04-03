@@ -187,7 +187,7 @@ begin
         end if;
 
       when S2 =>
-        report "STATE S2, Counter: " & integer'image(counter) & " NumWords_Int: " & integer'image(numWords_int) severity note;
+        report "STATE S2" severity note;
         if counter = numWords_int then
           report "COUNTER === NUMBER OF WORDS" severity note;
           compare_enable <= FALSE;
