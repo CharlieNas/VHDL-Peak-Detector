@@ -25,7 +25,7 @@ entity printer is
 end printer;
 
 architecture arch of printer is
-    TYPE state_type IS (IDLE, PRINTING);
+    TYPE state_type IS (IDLE, PRINTING, WAITING);
     SIGNAL curState, nextState: state_type; 
     SIGNAL en_reg, txDone_reg: std_logic;
     SIGNAL dataIn_reg : std_logic_vector (7 downto 0);
@@ -37,10 +37,12 @@ BEGIN
 	    -- IDLE: not in use, waits to be enabled
             WHEN IDLE =>
                 IF en_reg = '1' THEN
-                    nextState <= PRINTING;
+                    nextState <= WAITING;
                 ELSE
                     nextState <= IDLE;
                 END IF;
+            WHEN WAITING =>
+                nextState <= PRINTING;
 	    -- PRINTING: sends the byte to tx then waits for it to complete
             WHEN PRINTING =>
                 IF txDone_reg = '1' THEN
