@@ -29,7 +29,7 @@ entity cmdProc is
 end cmdProc;
 
 architecture arch of cmdProc is
-    type state_type is (INIT, VALID, PRINT_A, PRINT_P, PRINT_L, N2, N1, N0, ECHO, DATAPROC, STOREBYTE, HEX1, HEX2, SPACE, P, L, CARRIAGE_RETURN, LINE_FEED);
+    type state_type is (INIT, VALID, PRINT_A, PRINT_P, PRINT_L, N2, N1, N0, ECHO, DATAPROC, STOREBYTE, HEX1, HEX2, SPACE, P, L, CARRIAGE_RETURN, LINE_FEED, WAIT1, WAIT2, WAIT3, WAIT4, STARTING);
     signal curState, nextState: state_type; 
     signal enP, enL, en: std_logic; 
     signal doneP, doneL, finished: std_logic;
@@ -169,7 +169,7 @@ BEGIN
                 ELSIF finished = '1' and N_reg = "001" THEN -- Came from N1 and digit
                     nextState <= N0;
                 ELSIF finished = '1' and N_reg = "010" THEN -- Came from N0 and digit
-                    nextState <= CARRIAGE_RETURN;
+                    nextState <= WAIT1;
                 ELSIF finished = '1' and N_reg = "011" THEN -- Recvieved another A
                     nextState <= PRINT_A;
                 ELSIF finished = '0' THEN
@@ -177,20 +177,26 @@ BEGIN
                 ELSE 
                     nextState <= INIT;
                 END IF;
+            WHEN WAIT1 =>
+                nextState <= CARRIAGE_RETURN;
             WHEN CARRIAGE_RETURN =>
                 IF finished = '1' THEN
-                    nextState <= LINE_FEED;
+                    nextState <= WAIT2;
                 END IF;
+            WHEN WAIT2 =>
+                nextState <= LINE_FEED;
             WHEN LINE_FEED =>
                 IF finished = '1' AND route_reg = "00" AND direction_reg = '0' THEN
                     nextState <= P;
                 ELSIF finished = '1' AND route_reg = "01" AND direction_reg = '0' THEN
                     nextState <= L;
                 ELSIF finished = '1' AND route_reg = "10" AND direction_reg = '0' THEN
-                    nextState <= DATAPROC;
+                    nextState <= STARTING;
                 ELSIF finished = '1' AND direction_reg = '1' THEN
                     nextState <= INIT;
                 END IF;
+            WHEN STARTING =>
+                nextState <= DATAPROC;
             WHEN DATAPROC =>
                 IF dataReady_reg='1' THEN
                   nextState <= STOREBYTE;
@@ -201,23 +207,27 @@ BEGIN
                 nextState <= HEX1; 
             WHEN HEX1 =>
                 IF finished ='1' THEN
-                  nextState <= HEX2;
+                  nextState <= WAIT3;
                 ELSE
                   nextState <= HEX1;
                 END IF;
+            WHEN WAIT3 =>
+                nextState <= HEX2;
             WHEN HEX2 =>
                 IF finished ='1' THEN
                     IF seq_Available ='1' THEN ----------------------------------------------------- 
                         nextState <= INIT;
                     ELSE
-                        nextState <= SPACE;
+                        nextState <= WAIT4;
                     END IF;
                 ELSE
                   nextState <= HEX2;
                 END IF;
+            WHEN WAIT4 =>
+                nextState <= SPACE;
             WHEN SPACE =>
                 IF finished ='1' THEN
-                    nextState <= DATAPROC;
+                    nextState <= STARTING;
                 ELSE
                     nextState <= SPACE;
                 END IF;
@@ -398,15 +408,15 @@ BEGIN
                         N_reg <= "111";
                     END IF;
                 END IF;
-            WHEN ECHO =>
-                IF finished = '1' and N_reg = "010" THEN -- Came from N0 and digit
+            WHEN WAIT1 =>
+                IF N_reg = "010" THEN -- Came from N0 and digit
                     dataIn <= "00001101";
                     en <= '1';
                 END IF;
-            WHEN CARRIAGE_RETURN =>
+            WHEN WAIT2 =>
                 dataIn <= "00001010";
                 en <= '1';
-            WHEN LINE_FEED =>
+            WHEN STARTING =>
                 IF N_reg = "010" THEN
                     start <= '1'; 
                     numWords_bcd <= NNN;
@@ -422,24 +432,18 @@ BEGIN
                     dataIn <= STD_LOGIC_VECTOR(storedByte(7 DOWNTO 4) + "00110000");
                 END IF;
                 en <= '1';
-            WHEN HEX1 =>
-                IF finished ='1' THEN
-                    IF storedByte(3 DOWNTO 0) >= "1010" AND storedByte(3 DOWNTO 0) <= "1111" THEN
-                        dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110111");
-                    ELSE
-                        dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110000");
-                    END IF;
-                    en <= '1';
+            WHEN WAIT3 =>   
+                IF storedByte(3 DOWNTO 0) >= "1010" AND storedByte(3 DOWNTO 0) <= "1111" THEN
+                    dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110111");
+                ELSE
+                    dataIN <= STD_LOGIC_VECTOR(storedByte(3 DOWNTO 0) + "00110000");
                 END IF;
-            WHEN HEX2 =>
-                IF finished ='1' AND seqDone_reg /= '1' THEN
+                en <= '1';
+            WHEN WAIT4 =>
+                IF seqDone_reg /= '1' THEN
                     dataIN <= "00100000";
                     en <= '1';
                 END IF; 
-            WHEN SPACE =>
-                dataIn <= "00100000";
-                en <= '1';
-                start <= '1';
             WHEN P => 
                 enP <= '1';
                 direction_reg <= '1';
