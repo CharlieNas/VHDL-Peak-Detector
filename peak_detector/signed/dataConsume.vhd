@@ -23,15 +23,15 @@ END dataConsume;
 architecture Behavioral of dataConsume is
   type state_type is (S0, S1, S2, S3);
   type signed_array is array (integer range <>) of signed(7 downto 0);
-  
-  signal curr_state, next_state: state_type := S0;
+
+  signal curr_state, next_state: state_type;
   signal prev_ctrlIn, ctrlOut_state: std_logic := '0';
   signal edge_detected_ctrlIn: std_logic := '0';
-   
+
   signal BCD2int_enable: boolean := FALSE;
   signal numWords_int: integer := 0;
   signal counter: integer := 0;
-    
+
   signal current_value: signed(7 downto 0) := (others => '0');
   signal peak_value: signed(7 downto 0) := (others => '0');
   signal compare_enable: boolean := FALSE;
@@ -39,67 +39,54 @@ architecture Behavioral of dataConsume is
   signal peak_found: integer := 0;
   signal currentBytes: signed_array(0 to 6) := (others => (others => '0'));
   signal lastThreeBytes: signed_array(0 to 2) := (others => (others => '0'));
-    
+
   signal max_index_bcd_enable: boolean := FALSE;
-  signal max_index_bcd: BCD_ARRAY_TYPE(2 downto 0) := (others => (others => '0'));
+  signal max_index_bcd: BCD_ARRAY_TYPE(2 downto 0); 
   signal store_data_result_enable: boolean := FALSE;
 
 begin
 
-  ctrlIn_edge_detect: process(clk, reset)
+  ctrlIn_edge_detect: process(clk)
   begin
-  if rising_edge(clk) then
-    if reset = '1' then
-      edge_detected_ctrlIn <= '0';
-      prev_ctrlIn <= '0';
-    else
+    if rising_edge(clk) then
       edge_detected_ctrlIn <= ctrlIn XOR prev_ctrlIn;
       prev_ctrlIn <= ctrlIn;
     end if;
-  end if;
   end process;
 
-  ctrlOut_toggle: process(clk)
+  ctrlOut_toggle: process(clk, reset)
   begin
-  if rising_edge(clk) then
-    if reset = '1' then
-      ctrlOut_state <= '0';
-    elsif start = '1' or edge_detected_ctrlIn = '1' then
+    if rising_edge(clk) then
+      if reset = '1' then
+        ctrlOut_state <= '0';
+      elsif start = '1' or edge_detected_ctrlIn = '1' then
         ctrlOut_state <= not ctrlOut_state;
+      end if;
     end if;
-    ctrlOut <= ctrlOut_state; --this was after this next end if, maybe still works
-  end if;
+    ctrlOut <= ctrlOut_state;
   end process;
 
-  BCDToInteger: process(clk)
+  BCDToInteger: process(clk, BCD2int_enable, numWords_bcd)
   begin
-  if rising_edge(clk) then
-    if store_data_result_enable then -- when need to reset 
-      numWords_int <= 0;
-    elsif BCD2int_enable then
+    if BCD2int_enable then
       numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
                       to_integer(unsigned(numWords_bcd(1))) * 10 + 
                       to_integer(unsigned(numWords_bcd(0))); 
     end if;
-  end if;
   end process;
 
   MaxIndexBCD: process(clk)
   begin
-  if rising_edge(clk) then
-    if reset = '1' then
-      max_index_bcd <= (others => (others => '0'));
-    elsif max_index_bcd_enable then
+    if rising_edge(clk) and max_index_bcd_enable then
       max_index_bcd(0)(3 downto 0) <= std_logic_vector(to_unsigned(peak_index mod 10, 4));
       max_index_bcd(1)(3 downto 0) <= std_logic_vector(to_unsigned((peak_index / 10) mod 10, 4));
       max_index_bcd(2)(3 downto 0) <= std_logic_vector(to_unsigned((peak_index / 100) mod 10, 4));
     end if;
-  end if;
   end process;
 
   StoreInDataResult: process(clk)
   begin
-    if store_data_result_enable then -- does it need to be reset?
+    if store_data_result_enable then
       dataResults(0) <= std_logic_vector(currentBytes(0));
       dataResults(1) <= std_logic_vector(currentBytes(1));
       dataResults(2) <= std_logic_vector(currentBytes(2));
@@ -113,13 +100,7 @@ begin
   PeakDetection: process(clk)
   begin
       if rising_edge(clk) then
-        if reset = '1' then
-          peak_value <= (others => '0');
-          peak_index <= 0;
-          peak_found <= 0;
-          currentBytes <= (others => (others => '0'));
-          lastThreeBytes <= (others => (others => '0'));
-        elsif compare_enable then
+          if compare_enable then
               report "COMPARING PEAK DETECTOR" severity note;
               -- 1. Update buffer with next three values if peak was recent
               if peak_found > 0 then
@@ -168,11 +149,7 @@ begin
   ByteOutput: process(clk)
   begin
     if rising_edge(clk) then
-      if reset = '1' then
-        byte <= (others => '0');
-      else 
-        byte <= data;
-      end if;
+      byte <= data;
     end if;
   end process;
 
@@ -181,7 +158,6 @@ begin
     if rising_edge(clk) then
       if reset = '1' then
         curr_state <= S0;
-
       else
         curr_state <= next_state;
       end if;
@@ -192,27 +168,16 @@ begin
   begin
     case curr_state is
       when S0 =>
-        -- prev_ctrlIn <= '0';
-        -- ctrlOut_state <= '0'; -- reseting output signal
-        -- edge_detected_ctrlIn <= '0';
-        -- Resetting internal signals to their initial values
-        -- numWords_int <= 0;
         counter <= 0;
         current_value <= (others => '0');
-        peak_value <= (others => '0');
+        --peak_value <= (others => '0'); -- breaks it i think
         compare_enable <= FALSE;
-        --peak_index <= 0; -- in PeakDetection
-        --peak_found <= 0;
-        --currentBytes <= (others => (others => '0'));
-        --lastThreeBytes <= (others => (others => '0'));
         max_index_bcd_enable <= FALSE;
-        -- max_index_bcd <= (others => (others => '0'));
-        -- Note: Might not want to reset max_index_bcd here 
         store_data_result_enable <= FALSE;
-        -- Resetting output signals
         seqDone <= '0';
         dataReady <= '0';
-      
+        BCD2int_enable <= FALSE;
+        
         if start = '1' then
           BCD2int_enable <= TRUE;
           next_state <= S1;
@@ -221,11 +186,11 @@ begin
         end if;
 
       when S1 =>
+        dataReady <= '0';
         if edge_detected_ctrlIn = '1' then
           report "CONTROL IN FLIPPED" severity note;
           current_value <= signed(data);
           counter <= counter + 1;
-          dataReady <= '1';
           compare_enable <= TRUE;
           next_state <= S2;
         else
@@ -233,11 +198,13 @@ begin
         end if;
 
       when S2 =>
+        dataReady <= '1';
         report "STATE S2, Counter: " & integer'image(counter) & " NumWords_Int: " & integer'image(numWords_int) severity note;
         if counter = numWords_int then
           report "COUNTER === NUMBER OF WORDS" severity note;
           compare_enable <= FALSE;
-          max_index_bcd_enable <= TRUE;
+          store_data_result_enable <= TRUE; -- moved this
+          max_index_bcd_enable <= TRUE; -- moved this
           next_state <= S3;
         else
           next_state <= S1;
@@ -246,11 +213,8 @@ begin
       when S3 =>
         report "STATE S3" severity note;
         
-        store_data_result_enable <= TRUE;
-        maxIndex <= max_index_bcd;
+        
         seqDone <= '1';
-        -- numWords_int <= 0;
-        BCD2int_enable <= FALSE;
         next_state <= S0;
 
       when others =>
