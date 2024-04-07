@@ -66,86 +66,6 @@ begin
     ctrlOut <= ctrlOut_state;
   end process;
 
-  BCDToInteger: process(clk, BCD2int_enable, numWords_bcd)
-  begin
-    if BCD2int_enable then
-      numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
-                      to_integer(unsigned(numWords_bcd(1))) * 10 + 
-                      to_integer(unsigned(numWords_bcd(0))); 
-    end if;
-  end process;
-
-  MaxIndexBCD: process(clk)
-  begin
-    if rising_edge(clk) and max_index_bcd_enable then
-      max_index_bcd(0)(3 downto 0) <= std_logic_vector(to_unsigned(peak_index mod 10, 4));
-      max_index_bcd(1)(3 downto 0) <= std_logic_vector(to_unsigned((peak_index / 10) mod 10, 4));
-      max_index_bcd(2)(3 downto 0) <= std_logic_vector(to_unsigned((peak_index / 100) mod 10, 4));
-    end if;
-  end process;
-
-  StoreInDataResult: process(clk)
-  begin
-    if store_data_result_enable then
-      dataResults(0) <= std_logic_vector(currentBytes(0));
-      dataResults(1) <= std_logic_vector(currentBytes(1));
-      dataResults(2) <= std_logic_vector(currentBytes(2));
-      dataResults(3) <= std_logic_vector(currentBytes(3)); -- peak
-      dataResults(4) <= std_logic_vector(currentBytes(4));
-      dataResults(5) <= std_logic_vector(currentBytes(5));
-      dataResults(6) <= std_logic_vector(currentBytes(6));
-    end if;
-  end process;
-
-  PeakDetection: process(clk)
-  begin
-      if rising_edge(clk) then
-          if compare_enable then
-              report "COMPARING PEAK DETECTOR" severity note;
-              -- 1. Update buffer with next three values if peak was recent
-              if peak_found > 0 then
-                  case peak_found is
-                      when 3 =>
-                          currentBytes(4) <= current_value;
-                      when 2 =>
-                          currentBytes(5) <= current_value;
-                      when 1 =>
-                          currentBytes(6) <= current_value;
-                      when others =>
-                          null;
-                  end case;
-                  peak_found <= peak_found - 1;
-              end if;
-
-              -- 2. PeakDetection Process
-              -- If it's the first byte or the current byte is greater than the current peak
-              if counter = 0 or current_value > peak_value then
-                  peak_value <= current_value;
-                  peak_index <= counter;
-
-                  -- Update the buffer for the values before the peak
-                  currentBytes(0) <= lastThreeBytes(0);
-                  currentBytes(1) <= lastThreeBytes(1);
-                  currentBytes(2) <= lastThreeBytes(2);
-                  currentBytes(3) <= current_value; -- Peak in the middle
-
-                  -- Reset the next three values of the buffer as placeholders for potential future peaks
-                  currentBytes(4) <= (others => '0');
-                  currentBytes(5) <= (others => '0');
-                  currentBytes(6) <= (others => '0');
-                  peak_found <= 3; -- Ready to track the next three bytes post-peak
-              end if;
-
-              -- 3. Always keep track of last three bytes
-              -- Shift lastThreeBytes to make room for the new byte
-              lastThreeBytes(0) <= lastThreeBytes(1);
-              lastThreeBytes(1) <= lastThreeBytes(2);
-              lastThreeBytes(2) <= current_value;
-          
-          end if;
-      end if;
-  end process;
-
   ByteOutput: process(clk)
   begin
     if rising_edge(clk) then
@@ -168,18 +88,23 @@ begin
   begin
     case curr_state is
       when S0 =>
+        dataReady <= '0';
+        seqDone <= '0';
         counter <= 0;
         current_value <= (others => '0');
-        --peak_value <= (others => '0'); -- breaks it i think
-        compare_enable <= FALSE;
-        max_index_bcd_enable <= FALSE;
-        store_data_result_enable <= FALSE;
-        seqDone <= '0';
-        dataReady <= '0';
-        BCD2int_enable <= FALSE;
+        peak_value <= (others => '0');
+        peak_index <= 0;
+        peak_found <= 0;
+        currentBytes <= (others => (others => '0'));
+        lastThreeBytes <= (others => (others => '0'));
+        numWords_int <= 0;
+        
         
         if start = '1' then
-          BCD2int_enable <= TRUE;
+          numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
+                          to_integer(unsigned(numWords_bcd(1))) * 10 + 
+                          to_integer(unsigned(numWords_bcd(0))); 
+
           next_state <= S1;
         else
           next_state <= S0;
@@ -188,35 +113,73 @@ begin
       when S1 =>
         dataReady <= '0';
         if edge_detected_ctrlIn = '1' then
-          report "CONTROL IN FLIPPED" severity note;
           current_value <= signed(data);
           counter <= counter + 1;
-          compare_enable <= TRUE;
+          dataReady <= '1';
+
+          if peak_found > 0 then
+            case peak_found is
+                when 3 =>
+                    currentBytes(4) <= current_value;
+                when 2 =>
+                    currentBytes(5) <= current_value;
+                when 1 =>
+                    currentBytes(6) <= current_value;
+                when others =>
+                    null;
+            end case;
+            peak_found <= peak_found - 1;
+          end if;
+          if counter = 0 or current_value > peak_value then
+              peak_value <= current_value;
+              peak_index <= counter;
+
+              currentBytes(0) <= lastThreeBytes(0);
+              currentBytes(1) <= lastThreeBytes(1);
+              currentBytes(2) <= lastThreeBytes(2);
+              currentBytes(3) <= current_value;
+
+              currentBytes(4) <= (others => '0');
+              currentBytes(5) <= (others => '0');
+              currentBytes(6) <= (others => '0');
+              peak_found <= 3;
+          end if;
+          lastThreeBytes(0) <= lastThreeBytes(1);
+          lastThreeBytes(1) <= lastThreeBytes(2);
+          lastThreeBytes(2) <= current_value;
+
           next_state <= S2;
         else
           next_state <= S1;
         end if;
 
       when S2 =>
-        dataReady <= '1';
-        report "STATE S2, Counter: " & integer'image(counter) & " NumWords_Int: " & integer'image(numWords_int) severity note;
-        if counter = numWords_int then
-          report "COUNTER === NUMBER OF WORDS" severity note;
-          compare_enable <= FALSE;
-          store_data_result_enable <= TRUE; -- moved this
-          max_index_bcd_enable <= TRUE; -- moved this
+        
+        if counter >= numWords_int then
+          dataReady <= '0';
           next_state <= S3;
         else
           next_state <= S1;
         end if;
 
       when S3 =>
-        report "STATE S3" severity note;
-        
-        
+        dataReady <= '0';
         seqDone <= '1';
-        next_state <= S0;
 
+        dataResults(0) <= std_logic_vector(currentBytes(0));
+        dataResults(1) <= std_logic_vector(currentBytes(1));
+        dataResults(2) <= std_logic_vector(currentBytes(2));
+        dataResults(3) <= std_logic_vector(currentBytes(3)); -- peak
+        dataResults(4) <= std_logic_vector(currentBytes(4));
+        dataResults(5) <= std_logic_vector(currentBytes(5));
+        dataResults(6) <= std_logic_vector(currentBytes(6));
+
+        maxIndex(0) <= std_logic_vector(to_unsigned(peak_index mod 10, 4));
+        maxIndex(1) <= std_logic_vector(to_unsigned((peak_index / 10) mod 10, 4));
+        maxIndex(2) <= std_logic_vector(to_unsigned((peak_index / 100) mod 10, 4));
+      
+
+        next_state <= S0;
       when others =>
         next_state <= S0;
     end case;
