@@ -59,7 +59,7 @@ begin
     if rising_edge(clk) then
       if reset = '1' then
         ctrlOut_state <= '0';
-      elsif start = '1' or edge_detected_ctrlIn = '1' then
+      elsif start = '1' and counter < numWords_int then
         ctrlOut_state <= not ctrlOut_state;
       end if;
     end if;
@@ -120,33 +120,45 @@ begin
           if peak_found > 0 then
             case peak_found is
                 when 3 =>
-                    currentBytes(4) <= current_value;
+                    currentBytes(4) <= signed(data);
                 when 2 =>
-                    currentBytes(5) <= current_value;
+                    currentBytes(5) <= signed(data);
                 when 1 =>
-                    currentBytes(6) <= current_value;
+                    currentBytes(6) <= signed(data);
                 when others =>
                     null;
             end case;
             peak_found <= peak_found - 1;
           end if;
-          if counter = 0 or current_value > peak_value then
-              peak_value <= current_value;
+          
+          if counter = 0 or signed(data) > peak_value then
+              peak_value <= signed(data);
               peak_index <= counter;
+              maxIndex(0) <= std_logic_vector(to_unsigned(peak_index mod 10, 4));
+              maxIndex(1) <= std_logic_vector(to_unsigned((peak_index / 10) mod 10, 4));
+              maxIndex(2) <= std_logic_vector(to_unsigned((peak_index / 100) mod 10, 4));
 
               currentBytes(0) <= lastThreeBytes(0);
               currentBytes(1) <= lastThreeBytes(1);
               currentBytes(2) <= lastThreeBytes(2);
-              currentBytes(3) <= current_value;
+              currentBytes(3) <= signed(data);
 
               currentBytes(4) <= (others => '0');
               currentBytes(5) <= (others => '0');
               currentBytes(6) <= (others => '0');
               peak_found <= 3;
+              
+              dataResults(0) <= std_logic_vector(lastThreeBytes(0));
+              dataResults(1) <= std_logic_vector(lastThreeBytes(1));
+              dataResults(2) <= std_logic_vector(lastThreeBytes(2));
+              dataResults(3) <= std_logic_vector(currentBytes(3)); -- peak
+              dataResults(4) <= std_logic_vector(currentBytes(4));
+              dataResults(5) <= std_logic_vector(currentBytes(5));
+              dataResults(6) <= std_logic_vector(currentBytes(6));
           end if;
           lastThreeBytes(0) <= lastThreeBytes(1);
           lastThreeBytes(1) <= lastThreeBytes(2);
-          lastThreeBytes(2) <= current_value;
+          lastThreeBytes(2) <= signed(data);
 
           next_state <= S2;
         else
@@ -155,15 +167,17 @@ begin
 
       when S2 =>
         
-        if counter >= numWords_int then
-          dataReady <= '0';
-          next_state <= S3;
+        if counter < numWords_int then
+          if start = '1' then
+            next_state <= S1;
+          else
+            next_state <= S2;
+          end if;
         else
-          next_state <= S1;
+          next_state <= S3;
         end if;
 
       when S3 =>
-        dataReady <= '0';
         seqDone <= '1';
 
         dataResults(0) <= std_logic_vector(currentBytes(0));
@@ -180,6 +194,7 @@ begin
       
 
         next_state <= S0;
+        
       when others =>
         next_state <= S0;
     end case;
