@@ -25,7 +25,7 @@ architecture Behavioral of dataConsume is
   type signed_array is array (integer range <>) of signed(7 downto 0);
 
   signal curr_state, next_state: state_type;
-  signal prev_ctrlIn, ctrlOut_state: std_logic := '0';
+  signal prev_ctrlOut, prev_ctrlIn, ctrlOut_state: std_logic := '0';
   signal edge_detected_ctrlIn: std_logic := '0';
 
   signal BCD2int_enable: boolean := FALSE;
@@ -45,11 +45,15 @@ architecture Behavioral of dataConsume is
   signal store_data_result_enable: boolean := FALSE;
 
 begin
+  ctrlOut <= ctrlOut_state;
+  edge_detected_ctrlIn <= ctrlIn XOR prev_ctrlIn;
+  byte <= data;
+  
 
   ctrlIn_edge_detect: process(clk)
   begin
     if rising_edge(clk) then
-      edge_detected_ctrlIn <= ctrlIn XOR prev_ctrlIn;
+      prev_ctrlOut <= ctrlOut_state;
       prev_ctrlIn <= ctrlIn;
     end if;
   end process;
@@ -59,19 +63,19 @@ begin
     if rising_edge(clk) then
       if reset = '1' then
         ctrlOut_state <= '0';
-      elsif start = '1' and counter < numWords_int then
+      elsif (curr_state = S0 and start = '1') or (curr_state = S2 and counter < numWords_int) then
         ctrlOut_state <= not ctrlOut_state;
       end if;
     end if;
     ctrlOut <= ctrlOut_state;
   end process;
 
-  ByteOutput: process(clk)
-  begin
-    if rising_edge(clk) then
-      byte <= data;
-    end if;
-  end process;
+--  ByteOutput: process(clk)
+--  begin
+--    if rising_edge(clk) then
+--      byte <= data;
+--    end if;
+--  end process;
 
   StateMachine: process(clk, reset)
   begin
@@ -111,20 +115,20 @@ begin
         end if;
 
       when S1 =>
-        dataReady <= '0';
+        --dataReady <= '0';
         if edge_detected_ctrlIn = '1' then
           current_value <= signed(data);
           counter <= counter + 1;
-          dataReady <= '1';
+          
 
           if peak_found > 0 then
             case peak_found is
                 when 3 =>
-                    currentBytes(4) <= signed(data);
+                    currentBytes(2) <= signed(data);
                 when 2 =>
-                    currentBytes(5) <= signed(data);
+                    currentBytes(1) <= signed(data);
                 when 1 =>
-                    currentBytes(6) <= signed(data);
+                    currentBytes(0) <= signed(data);
                 when others =>
                     null;
             end case;
@@ -134,31 +138,34 @@ begin
           if counter = 0 or signed(data) > peak_value then
               peak_value <= signed(data);
               peak_index <= counter;
-              maxIndex(0) <= std_logic_vector(to_unsigned(peak_index mod 10, 4));
-              maxIndex(1) <= std_logic_vector(to_unsigned((peak_index / 10) mod 10, 4));
-              maxIndex(2) <= std_logic_vector(to_unsigned((peak_index / 100) mod 10, 4));
+              maxIndex(0) <= std_logic_vector(to_unsigned(counter mod 10, 4));
+              maxIndex(1) <= std_logic_vector(to_unsigned((counter / 10) mod 10, 4));
+              maxIndex(2) <= std_logic_vector(to_unsigned((counter / 100) mod 10, 4));
 
-              currentBytes(0) <= lastThreeBytes(0);
-              currentBytes(1) <= lastThreeBytes(1);
-              currentBytes(2) <= lastThreeBytes(2);
+              currentBytes(6) <= lastThreeBytes(2);
+              currentBytes(5) <= lastThreeBytes(1);
+              currentBytes(4) <= lastThreeBytes(0);
               currentBytes(3) <= signed(data);
 
-              currentBytes(4) <= (others => '0');
-              currentBytes(5) <= (others => '0');
-              currentBytes(6) <= (others => '0');
+              currentBytes(2) <= (others => '0');
+              currentBytes(1) <= (others => '0');
+              currentBytes(0) <= (others => '0');
               peak_found <= 3;
               
-              dataResults(0) <= std_logic_vector(lastThreeBytes(0));
-              dataResults(1) <= std_logic_vector(lastThreeBytes(1));
-              dataResults(2) <= std_logic_vector(lastThreeBytes(2));
-              dataResults(3) <= std_logic_vector(currentBytes(3)); -- peak
-              dataResults(4) <= std_logic_vector(currentBytes(4));
-              dataResults(5) <= std_logic_vector(currentBytes(5));
-              dataResults(6) <= std_logic_vector(currentBytes(6));
+              dataResults(6) <= std_logic_vector(lastThreeBytes(2));
+              dataResults(5) <= std_logic_vector(lastThreeBytes(1));
+              dataResults(4) <= std_logic_vector(lastThreeBytes(0));
+              dataResults(3) <= std_logic_vector(signed(data)); -- peak
+              dataResults(2) <= (others => '0');
+              dataResults(1) <= (others => '0');
+              dataResults(0) <= (others => '0');
+              
+              
           end if;
-          lastThreeBytes(0) <= lastThreeBytes(1);
-          lastThreeBytes(1) <= lastThreeBytes(2);
-          lastThreeBytes(2) <= signed(data);
+          lastThreeBytes(2) <= lastThreeBytes(1);
+          lastThreeBytes(1) <= lastThreeBytes(0);
+          lastThreeBytes(0) <= signed(data);
+          
 
           next_state <= S2;
         else
@@ -169,6 +176,7 @@ begin
         
         if counter < numWords_int then
           if start = '1' then
+            dataReady <= '1';
             next_state <= S1;
           else
             next_state <= S2;
