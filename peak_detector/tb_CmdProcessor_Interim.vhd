@@ -250,8 +250,13 @@ begin
   '1' after 55020 us,  '1' after 55124 us,  '0' after 55228 us,  '0' after 55332 us,  '1' after 55436 us,  
   -- 3: 0, 11001100, 1 (start bit - 0, decimal 2 (0011_0011) in order of LSB first, stop bit -1)
   '0' after 55800 us, '1' after 55904 us, '1' after 56008 us, '0' after 56112 us, '0' after 56216 us, 
-  '1' after 56320 us, '1' after 56424 us, '0' after 56528 us, '0' after 56632 us, '1' after 56736 us;
+  '1' after 56320 us, '1' after 56424 us, '0' after 56528 us, '0' after 56632 us, '1' after 56736 us,
   ------------------------------
+    -- issue P cmd p
+  -----------------------------
+    -- P: 1, 01110000, 1 (idle - 1, start bit - 0, p (0111_0000) in order of LSB first, stop bit -1)
+    '1' after 102000 us, '0' after 102001 us, '0' after 102105 us, '0' after 102209 us,  '0' after 102313 us,  '0' after 102417 us,  
+    '1' after 102521 us,  '1' after 102625 us,  '1' after 102729 us,  '0' after 102833 us, '1' after 102937 us;
  
 
 
