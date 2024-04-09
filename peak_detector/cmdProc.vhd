@@ -413,6 +413,8 @@ BEGIN
         IF CLK'EVENT AND CLK='1' THEN
             IF RESET = '1' THEN
                 seq_Available <= '0';
+            ELSIF curState = STARTING THEN
+                seq_Available <= '0';
             ELSIF seqDone_reg = '1' THEN
                 seq_Available <= '1';
             END IF;

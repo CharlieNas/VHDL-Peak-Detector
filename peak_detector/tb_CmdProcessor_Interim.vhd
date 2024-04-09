@@ -240,17 +240,17 @@ begin
   -- issue second read cmd A013
   -----------------------------
   -- A: 1, 01000010, 1 (idle - 1, start bit - 0, A (0100_0001) in order of LSB first, stop bit -1)
-  '1' after 132000 us, '0' after 132001 us, '1' after 132105 us, '0' after 132209 us,  '0' after 132313 us,  '0' after 132417 us,  
-  '0' after 132521 us,  '0' after 132625 us,  '1' after 132729 us,  '0' after 132833 us, '1' after 132937 us, 
+  '1' after 52000 us, '0' after 52001 us, '1' after 52105 us, '0' after 52209 us,  '0' after 52313 us,  '0' after 52417 us,  
+  '0' after 52521 us,  '0' after 52625 us,  '1' after 52729 us,  '0' after 52833 us, '1' after 52937 us, 
   -- 0: 0, 00001100, 1 (start bit - 0, decimal 0 (0011_0000) in order of LSB first, stop bit -1)
-  '0' after 133200 us, '0' after 133304 us, '0' after 133408 us, '0' after 133512 us,  '0' after 133616 us,  
-  '1' after 133720 us, '1' after 133824 us,  '0' after 133928 us,  '0' after 134032 us,  '1' after 134136 us, 
+  '0' after 53200 us, '0' after 53304 us, '0' after 53408 us, '0' after 53512 us,  '0' after 53616 us,  
+  '1' after 53720 us, '1' after 53824 us,  '0' after 53928 us,  '0' after 54032 us,  '1' after 54136 us, 
   -- 1: 0, 10001100, 1 (start bit - 0, decimal 0 (0011_0001) in order of LSB first, stop bit -1)
-  '0' after 134500 us, '1' after 134604 us, '0' after 134708 us, '0' after 134812 us, '0' after 134916 us,
-  '1' after 135020 us,  '1' after 135124 us,  '0' after 135228 us,  '0' after 135332 us,  '1' after 135436 us,  
+  '0' after 54500 us, '1' after 54604 us, '0' after 54708 us, '0' after 54812 us, '0' after 54916 us,
+  '1' after 55020 us,  '1' after 55124 us,  '0' after 55228 us,  '0' after 55332 us,  '1' after 55436 us,  
   -- 3: 0, 11001100, 1 (start bit - 0, decimal 2 (0011_0011) in order of LSB first, stop bit -1)
-  '0' after 135800 us, '1' after 135904 us, '1' after 136008 us, '0' after 136112 us, '0' after 136216 us, 
-  '1' after 136320 us, '1' after 136424 us, '0' after 136528 us, '0' after 136632 us, '1' after 136736 us;
+  '0' after 55800 us, '1' after 55904 us, '1' after 56008 us, '0' after 56112 us, '0' after 56216 us, 
+  '1' after 56320 us, '1' after 56424 us, '0' after 56528 us, '0' after 56632 us, '1' after 56736 us;
   ------------------------------
  
 
