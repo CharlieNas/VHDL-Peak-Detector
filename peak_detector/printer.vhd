@@ -42,7 +42,11 @@ BEGIN
                     nextState <= IDLE;
                 END IF;
             WHEN WAITING =>
-                nextState <= PRINTING;
+                IF txDone_reg = '0' THEN
+                    nextState <= PRINTING;
+                ELSE
+                    nextState <= WAITING;
+                END IF;
 	    -- PRINTING: sends the byte to tx then waits for it to complete
             WHEN PRINTING =>
                 IF txDone_reg = '1' THEN
