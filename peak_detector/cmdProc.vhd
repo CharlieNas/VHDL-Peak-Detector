@@ -187,8 +187,12 @@ BEGIN
                     nextState <= N0;
                 ELSIF finished = '1' and N_reg = "010" THEN -- Came from N0 and digit
                     nextState <= WAIT_CARRIAGE;
-                ELSIF finished = '1' and N_reg = "011" THEN -- Recvieved another A
+                ELSIF finished = '1' and N_reg = "011" THEN -- Received another A
                     nextState <= N2;
+                ELSIF finished = '1' and N_reg = "100" and seq_Available='1' THEN -- Received a P
+                    nextState <= WAIT_CARRIAGE;
+                ELSIF finished = '1' and N_reg = "101" and seq_Available='1' THEN -- Recvieved an L
+                    nextState <= WAIT_CARRIAGE;
                 ELSIF finished = '0' THEN
                     nextState <= ECHO;
                 ELSE 
@@ -320,6 +324,10 @@ BEGIN
                         NNN(2) <= rxData_reg(3 downto 0);
                     ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
                         N_reg <= "011";
+                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN 
+                        N_reg <= "100";
+                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN 
+                        N_reg <= "101";
                     ELSE 
                         N_reg <= "111";
                     END IF;
@@ -334,6 +342,10 @@ BEGIN
                         NNN(1) <= rxData_reg(3 downto 0);
                     ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
                         N_reg <= "011";
+                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN 
+                        N_reg <= "100";
+                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN 
+                        N_reg <= "101";
                     ELSE 
                         N_reg <= "111";
                     END IF;
@@ -348,9 +360,21 @@ BEGIN
                         NNN(0) <= rxData_reg(3 downto 0);
                     ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
                         N_reg <= "011";
+                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN 
+                        N_reg <= "100";
+                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN 
+                        N_reg <= "101";
                     ELSE 
                         N_reg <= "111";
                     END IF;
+                END IF;
+            WHEN ECHO => -- Wait for printing and pick route depending on N_reg
+                IF finished = '1' and N_reg = "100" and seq_Available='1' THEN -- Recvieved a P
+                    route_reg <= "00";
+                    direction_reg <= '0';
+                ELSIF finished = '1' and N_reg = "101" and seq_Available='1' THEN -- Recvieved an L
+                    route_reg <= "01";
+                    direction_reg <= '0';
                 END IF;
             ---------------------------------------------------------------------------------
             -- Carriage Return and Line Feed

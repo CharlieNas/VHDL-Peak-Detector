@@ -232,17 +232,17 @@ begin
   -- -- issue invalid read cmd a01c
   -- -----------------------------
   -- -- a: 1, 0, 1000_0110, 1 (idle - 1, start bit - 0, a (0110_0001) in order of LSB first, stop bit -1)
-  -- sig_rx <= '1', '0' after 1 us, '1' after 105 us, '0' after 209 us,  '0' after 313 us,  '0' after 417 us,  
-  -- '0' after 521 us,  '1' after 625 us,  '1' after 729 us,  '0' after 833 us, '1' after 937 us, 
-  -- -- 0: 0, 0000_1100, 1 (start bit - 0, decimal 0 (0011_0000) in order of LSB first, stop bit -1)
-  -- '0' after 1200 us, '0' after 1304 us, '0' after 1408 us, '0' after 1512 us,  '0' after 1616 us,  
-  -- '1' after 1720 us, '1' after 1824 us,  '0' after 1928 us,  '0' after 2032 us,  '1' after 2136 us, 
-  -- -- 1: 0, 10001100, 1 (start bit - 0, decimal 0 (0011_0001) in order of LSB first, stop bit -1)
-  --   '0' after 2500 us, '1' after 2604 us, '0' after 2708 us, '0' after 2812 us, '0' after 2916 us,
-  --   '1' after 3020 us,  '1' after 3124 us,  '0' after 3228 us,  '0' after 3332 us,  '1' after 3436 us,  
-  -- -- c: 0, 0100_0011, 1 (start bit - 0 c (0100_0011) in order of LSB first, stop bit -1)
-  -- '0' after 3800 us, '1' after 3904 us, '1' after 4008 us, '0' after 4112 us, '0' after 4216 us, 
-  -- '0' after 4320 us, '0' after 4424 us, '1' after 4528 us, '0' after 4632 us, '1' after 4736 us,
+--   sig_rx <= '1', '0' after 1 us, '1' after 105 us, '0' after 209 us,  '0' after 313 us,  '0' after 417 us,  
+--   '0' after 521 us,  '1' after 625 us,  '1' after 729 us,  '0' after 833 us, '1' after 937 us, 
+--   -- 0: 0, 0000_1100, 1 (start bit - 0, decimal 0 (0011_0000) in order of LSB first, stop bit -1)
+--   '0' after 1200 us, '0' after 1304 us, '0' after 1408 us, '0' after 1512 us,  '0' after 1616 us,  
+--   '1' after 1720 us, '1' after 1824 us,  '0' after 1928 us,  '0' after 2032 us,  '1' after 2136 us, 
+--   -- 1: 0, 10001100, 1 (start bit - 0, decimal 0 (0011_0001) in order of LSB first, stop bit -1)
+--     '0' after 2500 us, '1' after 2604 us, '0' after 2708 us, '0' after 2812 us, '0' after 2916 us,
+--     '1' after 3020 us,  '1' after 3124 us,  '0' after 3228 us,  '0' after 3332 us,  '1' after 3436 us,  
+--   -- c: 0, 0100_0011, 1 (start bit - 0 c (0100_0011) in order of LSB first, stop bit -1)
+--   '0' after 3800 us, '1' after 3904 us, '1' after 4008 us, '0' after 4112 us, '0' after 4216 us, 
+--   '0' after 4320 us, '0' after 4424 us, '1' after 4528 us, '0' after 4632 us, '1' after 4736 us,
   
   -----------------------------
   -- issue first read cmd a012
@@ -263,6 +263,22 @@ begin
   -- issue second read cmd A013
   -----------------------------
   -- A: 1, 01000010, 1 (idle - 1, start bit - 0, A (0100_0001) in order of LSB first, stop bit -1)
+--  '1' after 52000 us, '0' after 52001 us, '1' after 52105 us, '0' after 52209 us,  '0' after 52313 us,  '0' after 52417 us,  
+--  '0' after 52521 us,  '0' after 52625 us,  '1' after 52729 us,  '0' after 52833 us, '1' after 52937 us, 
+--  -- 0: 0, 00001100, 1 (start bit - 0, decimal 0 (0011_0000) in order of LSB first, stop bit -1)
+--  '0' after 53200 us, '0' after 53304 us, '0' after 53408 us, '0' after 53512 us,  '0' after 53616 us,  
+--  '1' after 53720 us, '1' after 53824 us,  '0' after 53928 us,  '0' after 54032 us,  '1' after 54136 us, 
+--  -- 1: 0, 10001100, 1 (start bit - 0, decimal 0 (0011_0001) in order of LSB first, stop bit -1)
+--  '0' after 54500 us, '1' after 54604 us, '0' after 54708 us, '0' after 54812 us, '0' after 54916 us,
+--  '1' after 55020 us,  '1' after 55124 us,  '0' after 55228 us,  '0' after 55332 us,  '1' after 55436 us,  
+--  -- 3: 0, 11001100, 1 (start bit - 0, decimal 2 (0011_0011) in order of LSB first, stop bit -1)
+--  '0' after 55800 us, '1' after 55904 us, '1' after 56008 us, '0' after 56112 us, '0' after 56216 us, 
+--  '1' after 56320 us, '1' after 56424 us, '0' after 56528 us, '0' after 56632 us, '1' after 56736 us,
+  
+   -----------------------------
+  -- issue second read cmd A01P
+  -----------------------------
+  -- A: 1, 01000010, 1 (idle - 1, start bit - 0, A (0100_0001) in order of LSB first, stop bit -1)
   '1' after 52000 us, '0' after 52001 us, '1' after 52105 us, '0' after 52209 us,  '0' after 52313 us,  '0' after 52417 us,  
   '0' after 52521 us,  '0' after 52625 us,  '1' after 52729 us,  '0' after 52833 us, '1' after 52937 us, 
   -- 0: 0, 00001100, 1 (start bit - 0, decimal 0 (0011_0000) in order of LSB first, stop bit -1)
@@ -271,9 +287,9 @@ begin
   -- 1: 0, 10001100, 1 (start bit - 0, decimal 0 (0011_0001) in order of LSB first, stop bit -1)
   '0' after 54500 us, '1' after 54604 us, '0' after 54708 us, '0' after 54812 us, '0' after 54916 us,
   '1' after 55020 us,  '1' after 55124 us,  '0' after 55228 us,  '0' after 55332 us,  '1' after 55436 us,  
-  -- 3: 0, 11001100, 1 (start bit - 0, decimal 2 (0011_0011) in order of LSB first, stop bit -1)
-  '0' after 55800 us, '1' after 55904 us, '1' after 56008 us, '0' after 56112 us, '0' after 56216 us, 
-  '1' after 56320 us, '1' after 56424 us, '0' after 56528 us, '0' after 56632 us, '1' after 56736 us,
+  -- P: 1, 01110000, 1 (start bit - 0, p (0111_0000) in order of LSB first, stop bit -1)
+  '0' after 55800 us, '0' after 55904 us, '0' after 56008 us, '0' after 56112 us, '0' after 56216 us, 
+  '1' after 56320 us, '1' after 56424 us, '1' after 56528 us, '0' after 56632 us, '1' after 56736 us,
   ------------------------------
     -- issue P cmd p
   -----------------------------
