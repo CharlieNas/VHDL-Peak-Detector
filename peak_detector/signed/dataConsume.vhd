@@ -39,14 +39,14 @@ architecture Behavioral of dataConsume is
 begin
   edge_detected_ctrlIn <= ctrlIn XOR prev_ctrlIn;
   
-  ctrlInEdgeDetect: process(clk)
+  CtrlInEdgeDetect: process(clk)
   begin
     if rising_edge(clk) then
       prev_ctrlIn <= ctrlIn;
     end if;
   end process;
 
-  ctrlOutToggle: process(clk, reset)
+  CtrlOutToggle: process(clk, reset)
   begin
     if rising_edge(clk) then
       if reset = '1' then
