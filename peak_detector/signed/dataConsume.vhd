@@ -3,7 +3,7 @@ use IEEE.STD_LOGIC_1164.ALL;
 use IEEE.NUMERIC_STD.ALL;
 use work.common_pack.all;
 
-ENTITY dataConsume IS
+entity dataConsume is
   port(
     clk:        in std_logic;
     reset:      in std_logic;
@@ -18,7 +18,7 @@ ENTITY dataConsume IS
     maxIndex:   out BCD_ARRAY_TYPE(2 downto 0);
     dataResults: out CHAR_ARRAY_TYPE(0 to 6)
   );
-END dataConsume;
+end dataConsume;
 
 architecture Behavioral of dataConsume is
   type state_type is (S0, S1, S2);
@@ -177,6 +177,5 @@ begin
         next_state <= S0;
     end case;
   end process;
-
 
 end Behavioral;
