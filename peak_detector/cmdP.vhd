@@ -24,7 +24,7 @@ ARCHITECTURE arch of cmdP IS
     TYPE state_type IS (IDLE, PRINTING, WAITING);
     SIGNAL curState, nextState: state_type;
     
-    TYPE ASCII_SEQUENCE IS array (0 to 7) of std_logic_vector (7 downto 0);
+    TYPE ASCII_SEQUENCE IS array (0 to 5) of std_logic_vector (7 downto 0);
     SIGNAL fullData: ASCII_SEQUENCE;
     
     SIGNAL enP_reg, print_en, finished: STD_LOGIC;
@@ -78,7 +78,7 @@ BEGIN
                 nextState <= WAITING;
             WHEN WAITING =>
                 IF finished_reg = '1' THEN
-                    IF b_index = 8 THEN
+                    IF b_index = 6 THEN
                         nextState <= IDLE;
                     ELSE
                         nextState <= PRINTING;
@@ -102,7 +102,7 @@ BEGIN
             dataIn <= fullData(b_index);
             b_index <= b_index + 1;
         ELSIF curState = WAITING AND finished_reg = '1' THEN
-            IF b_index = 8 THEN
+            IF b_index = 6 THEN
                 doneP <= '1';
                 b_index <= 0;
             END IF;
@@ -139,8 +139,8 @@ BEGIN
             fullData(3) <= NIB_TO_ASCII(maxIndex(2));               -- 10^2 char: fourth
             fullData(4) <= NIB_TO_ASCII(maxIndex(1));               -- 10^1 char: fitfh
             fullData(5) <= NIB_TO_ASCII(maxIndex(0));               -- 10^0 char: sixth
-            fullData(6) <= "00001010";                              -- Line Feed (\n): seventh
-            fullData(7) <= "00001101";                              -- Carriage Return (\r): eighth
+--            fullData(6) <= "00001010";                              -- Line Feed (\n): seventh
+--            fullData(7) <= "00001101";                              -- Carriage Return (\r): eighth
         END IF;
     END PROCESS; 
   -----------------------------------------------------
