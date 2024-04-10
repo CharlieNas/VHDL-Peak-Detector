@@ -220,6 +220,29 @@ begin
     end loop;
     wait;
   end process;
+
+  -- ------------------------------
+  -- -- issue L cmd l
+  -- -----------------------------
+  --   -- L: 1, 01001100, 1 (idle - 1, start bit - 0, p (0100_1100) in order of LSB first, stop bit -1)
+  --   sig_rx <= '1' after 0 us, '0' after 1 us, '0' after 105 us, '0' after 209 us,  '1' after 313 us,  '1' after 417 us,  
+  --   '0' after 521 us,  '0' after 625 us,  '1' after 729 us,  '0' after 833 us, '1' after 937 us,
+
+  -- -----------------------------
+  -- -- issue invalid read cmd a01c
+  -- -----------------------------
+  -- -- a: 1, 0, 1000_0110, 1 (idle - 1, start bit - 0, a (0110_0001) in order of LSB first, stop bit -1)
+  -- sig_rx <= '1', '0' after 1 us, '1' after 105 us, '0' after 209 us,  '0' after 313 us,  '0' after 417 us,  
+  -- '0' after 521 us,  '1' after 625 us,  '1' after 729 us,  '0' after 833 us, '1' after 937 us, 
+  -- -- 0: 0, 0000_1100, 1 (start bit - 0, decimal 0 (0011_0000) in order of LSB first, stop bit -1)
+  -- '0' after 1200 us, '0' after 1304 us, '0' after 1408 us, '0' after 1512 us,  '0' after 1616 us,  
+  -- '1' after 1720 us, '1' after 1824 us,  '0' after 1928 us,  '0' after 2032 us,  '1' after 2136 us, 
+  -- -- 1: 0, 10001100, 1 (start bit - 0, decimal 0 (0011_0001) in order of LSB first, stop bit -1)
+  --   '0' after 2500 us, '1' after 2604 us, '0' after 2708 us, '0' after 2812 us, '0' after 2916 us,
+  --   '1' after 3020 us,  '1' after 3124 us,  '0' after 3228 us,  '0' after 3332 us,  '1' after 3436 us,  
+  -- -- c: 0, 0100_0011, 1 (start bit - 0 c (0100_0011) in order of LSB first, stop bit -1)
+  -- '0' after 3800 us, '1' after 3904 us, '1' after 4008 us, '0' after 4112 us, '0' after 4216 us, 
+  -- '0' after 4320 us, '0' after 4424 us, '1' after 4528 us, '0' after 4632 us, '1' after 4736 us,
   
   -----------------------------
   -- issue first read cmd a012
@@ -256,7 +279,7 @@ begin
   -----------------------------
     -- P: 1, 01110000, 1 (idle - 1, start bit - 0, p (0111_0000) in order of LSB first, stop bit -1)
     '1' after 102000 us, '0' after 102001 us, '0' after 102105 us, '0' after 102209 us,  '0' after 102313 us,  '0' after 102417 us,  
-    '1' after 102521 us,  '1' after 102625 us,  '1' after 102729 us,  '0' after 102833 us, '1' after 102937 us;
+    '1' after 102521 us,  '1' after 102625 us,  '1' after 102729 us,  '0' after 102833 us, '1' after 102937 us,
     ------------------------------
     -- issue L cmd l
   -----------------------------
