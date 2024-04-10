@@ -29,7 +29,7 @@ entity cmdProc is
 end cmdProc;
 
 architecture arch of cmdProc is
-    type state_type is (INIT, RESTART, VALID, PRINT_A, PRINT_P, PRINT_L, N2, N1, N0, ECHO, WAIT_CARRIAGE, CARRIAGE_RETURN, WAIT_LINE, LINE_FEED, STARTING, DATAPROC, PREP_HEX1, HEX1, PREP_HEX2, HEX2, PREP_SPACE, SPACE, P, L);
+    type state_type is (INIT, RESTART, VALID, PRINT_A, PRINT_P, PRINT_L, N2, N1, N0, ECHO, WAIT_CARRIAGE, CARRIAGE_RETURN, WAIT_LINE, LINE_FEED, STARTING, DATAPROC, PREP_HEX1, HEX1, PREP_HEX2, HEX2, PREP_SPACE, SPACE, PREP_P, PREP_L, P, L);
     signal curState, nextState: state_type; 
     signal enP, enL, en: std_logic; 
     signal doneP, doneL, finished: std_logic;
@@ -39,6 +39,8 @@ architecture arch of cmdProc is
     signal rxData_reg, byte_reg, dataIn: std_logic_vector (7 downto 0);
     signal maxIndex_reg: BCD_ARRAY_TYPE(2 downto 0);  
     signal dataResults_reg: CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);
+    signal maxIndex_stored: BCD_ARRAY_TYPE(2 downto 0);  
+    signal dataResults_stored: CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);
     -- Pathway registers
     signal direction_reg: std_logic; -- Going into or out of P/L
     signal route_reg: std_logic_vector (1 downto 0); -- Going into A/P/L
@@ -101,8 +103,8 @@ architecture arch of cmdProc is
 
 BEGIN
     print:     printer port map (clk, reset, en, dataIn, txDone, txData_M, txNow_M, finished);
-    command_P: cmdP port map (clk, reset, enP, dataResults_reg(3), maxIndex_reg, txdone_reg, txData_P, txNow_P, doneP);
-    command_L: cmdL port map (clk, reset, enL, dataResults_reg, txdone, txData_L, txNow_L, doneL);
+    command_P: cmdP port map (clk, reset, enP, dataResults_stored(3), maxIndex_stored, txdone_reg, txData_P, txNow_P, doneP);
+    command_L: cmdL port map (clk, reset, enL, dataResults_stored, txdone, txData_L, txNow_L, doneL);
     
     ---------------------------
     --  Multiple driver control
@@ -205,9 +207,9 @@ BEGIN
                 nextState <= LINE_FEED;
             WHEN LINE_FEED => -- Wait for line feed to print
                 IF finished = '1' AND route_reg = "00" AND direction_reg = '0' THEN
-                    nextState <= P;
+                    nextState <= PREP_P;
                 ELSIF finished = '1' AND route_reg = "01" AND direction_reg = '0' THEN
-                    nextState <= L;
+                    nextState <= PREP_L;
                 ELSIF finished = '1' AND route_reg = "10"  THEN
                     nextState <= STARTING;
                 ELSIF finished = '1' AND direction_reg = '1' THEN
@@ -255,6 +257,18 @@ BEGIN
             ---------------------------------------------------------------------------------
             -- P and L commands
             ---------------------------------------------------------------------------------
+            WHEN PRINT_P => 
+                IF finished = '1' THEN
+                    nextState <= WAIT_CARRIAGE;
+                END IF;
+            WHEN PRINT_L => 
+                IF finished = '1' THEN
+                    nextState <= WAIT_CARRIAGE;
+                END IF;
+            WHEN PREP_P =>
+                nextState <= P;
+            WHEN PREP_L =>
+                nextState <= L;
             WHEN P => 
                 IF doneP = '1' THEN
                     nextState <= WAIT_CARRIAGE;
@@ -266,14 +280,6 @@ BEGIN
                     nextState <= WAIT_CARRIAGE;
                 ELSE
                     nextState <= L;
-                END IF;
-            WHEN PRINT_P => 
-                IF finished = '1' THEN
-                    nextState <= WAIT_CARRIAGE;
-                END IF;
-            WHEN PRINT_L => 
-                IF finished = '1' THEN
-                    nextState <= WAIT_CARRIAGE;
                 END IF;
             WHEN OTHERS =>
                 nextState <= INIT;
@@ -389,18 +395,18 @@ BEGIN
             ---------------------------------------------------------------------------------
             -- P and L commands
             ---------------------------------------------------------------------------------
-            WHEN P => 
-                enP <= '1';
-                direction_reg <= '1';
-            WHEN L => 
-                enL <= '1';
-                direction_reg <= '1';
             WHEN PRINT_P => 
                 route_reg <= "00";
                 direction_reg <= '0';
             WHEN PRINT_L => 
                 route_reg <= "01";
                 direction_reg <= '0';
+            WHEN PREP_P => 
+                enP <= '1';
+                direction_reg <= '1';
+            WHEN PREP_L => 
+                enL <= '1';
+                direction_reg <= '1';
             WHEN OTHERS =>
         END CASE;
     END PROCESS;
@@ -408,9 +414,9 @@ BEGIN
     ---------------------------
     -- seq_Available Managing
     ---------------------------
-    sequencing: PROCESS (clk, reset, seqDone_reg)
+    sequencing: PROCESS (clk)
     BEGIN
-        IF CLK'EVENT AND CLK='1' THEN
+        IF clk'EVENT AND clk='1' THEN
             IF RESET = '1' THEN
                 seq_Available <= '0';
             ELSIF curState = STARTING THEN
@@ -421,13 +427,29 @@ BEGIN
         END IF;
     END PROCESS; 
 
+     ---------------------------
+    -- Data Results and Max Index Managing
+    ---------------------------
+    data: PROCESS (clk)
+    BEGIN
+        IF clk'EVENT AND clk='1' THEN
+            IF RESET = '1' THEN
+                maxIndex_stored <= ("0000", "0000", "0000");
+                dataResults_stored <= ("00000000", "00000000", "00000000", "00000000", "00000000", "00000000", "00000000");
+            ELSIF seqDone_reg = '1' THEN
+                maxIndex_stored <= maxIndex_reg;
+                dataResults_stored <= dataResults_reg;
+            END IF;
+        END IF;
+    END PROCESS; 
+
 
     ---------------------------
     -- Input registering
     ---------------------------
-    seq_input: PROCESS(CLK)
+    seq_input: PROCESS(clk)
     BEGIN
-        IF CLK'EVENT AND CLK='1' THEN
+        IF clk'EVENT AND clk='1' THEN
             rxnow_reg <=        rxnow;
             txdone_reg <=       txdone;
             dataReady_reg <=    dataReady;
@@ -442,9 +464,9 @@ BEGIN
     ---------------------------
     -- Sequential state updating
     ---------------------------
-    seq_state: PROCESS (clk, reset)
+    seq_state: PROCESS (clk)
     BEGIN
-        IF CLK'EVENT AND CLK='1' THEN
+        IF clk'EVENT AND clk='1' THEN
             IF RESET = '1' THEN
                 curState <= INIT;
             ELSE
