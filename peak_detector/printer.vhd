@@ -59,7 +59,7 @@ BEGIN
         END CASE;
     END PROCESS;
     -----------------------------------------------------
-    combi_out: PROCESS(curState, txDone_reg, dataIn_reg)
+    combi_out: PROCESS(curState, txDone_reg, dataIn_reg, en_reg)
     BEGIN
         finished <= '0';
         txnow <= '0';
