@@ -210,13 +210,13 @@ BEGIN
             WHEN WAIT_LINE => -- Prep printing for line feed
                 nextState <= LINE_FEED;
             WHEN LINE_FEED => -- Wait for line feed to print
-                IF finished = '1' AND route_reg = "00" AND direction_reg = '0' THEN
+                IF finished = '1' AND route_reg = "00" AND direction_reg = '0' THEN -- Route = P and Direction = Into
                     nextState <= PREP_P;
-                ELSIF finished = '1' AND route_reg = "01" AND direction_reg = '0' THEN
+                ELSIF finished = '1' AND route_reg = "01" AND direction_reg = '0' THEN -- Route = L and Direction = Into
                     nextState <= PREP_L;
-                ELSIF finished = '1' AND route_reg = "10"  THEN
+                ELSIF finished = '1' AND route_reg = "10" THEN -- Route = A 
                     nextState <= STARTING;
-                ELSIF finished = '1' AND direction_reg = '1' THEN
+                ELSIF finished = '1' AND direction_reg = '1' THEN -- Direction = Out
                     nextState <= INIT;
                 END IF;
             ---------------------------------------------------------------------------------
@@ -261,25 +261,25 @@ BEGIN
             ---------------------------------------------------------------------------------
             -- P and L commands
             ---------------------------------------------------------------------------------
-            WHEN PRINT_P => 
+            WHEN PRINT_P => -- Wait for valid P character to print
                 IF finished = '1' THEN
                     nextState <= WAIT_CARRIAGE;
                 END IF;
-            WHEN PRINT_L => 
+            WHEN PRINT_L => -- Wait for valid L character to print
                 IF finished = '1' THEN
                     nextState <= WAIT_CARRIAGE;
                 END IF;
-            WHEN PREP_P =>
+            WHEN PREP_P => -- Prep route and direction reg if moving into P from inside A
                 nextState <= P;
-            WHEN PREP_L =>
+            WHEN PREP_L => -- Prep route and direction reg if moving into L from inside A
                 nextState <= L;
-            WHEN P => 
+            WHEN P => -- P component active
                 IF doneP = '1' THEN
                     nextState <= WAIT_CARRIAGE;
                 ELSE
                     nextState <= P;
                 END IF;
-            WHEN L => 
+            WHEN L => -- L component active
                 IF doneL = '1' THEN
                     nextState <= WAIT_CARRIAGE;
                 ELSE
@@ -319,14 +319,14 @@ BEGIN
                     dataIn <= rxData_reg;
                     rxDone <= '1';
                     en <= '1';
-                    IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
-                        N_reg <= "000";
-                        NNN(2) <= rxData_reg(3 downto 0);
-                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
+                    IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN -- If received a digit
+                        N_reg <= "000"; -- Move into N1
+                        NNN(2) <= rxData_reg(3 downto 0); -- Store first digit in NNN
+                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
                         N_reg <= "011";
-                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN 
+                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
                         N_reg <= "100";
-                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN 
+                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
                         N_reg <= "101";
                     ELSE 
                         N_reg <= "111";
@@ -337,14 +337,14 @@ BEGIN
                     dataIn <= rxData_reg;
                     rxDone <= '1';
                     en <= '1';
-                    IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
+                    IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN -- If received a digit
                         N_reg <= "001";
                         NNN(1) <= rxData_reg(3 downto 0);
-                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
+                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN -- If received an A
                         N_reg <= "011";
-                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN 
+                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
                         N_reg <= "100";
-                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN 
+                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
                         N_reg <= "101";
                     ELSE 
                         N_reg <= "111";
@@ -355,24 +355,24 @@ BEGIN
                     dataIn <= rxData_reg;
                     rxDone <= '1';
                     en <= '1';
-                    IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN 
+                    IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN -- If received a digit
                         N_reg <= "010";
                         NNN(0) <= rxData_reg(3 downto 0);
-                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN 
+                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN -- If received an A
                         N_reg <= "011";
-                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN 
+                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
                         N_reg <= "100";
-                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN 
+                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
                         N_reg <= "101";
                     ELSE 
                         N_reg <= "111";
                     END IF;
                 END IF;
             WHEN ECHO => -- Wait for printing and pick route depending on N_reg
-                IF finished = '1' and N_reg = "100" and seq_Available='1' THEN -- Recvieved a P
+                IF finished = '1' and N_reg = "100" and seq_Available='1' THEN -- Received a P
                     route_reg <= "00";
                     direction_reg <= '0';
-                ELSIF finished = '1' and N_reg = "101" and seq_Available='1' THEN -- Recvieved an L
+                ELSIF finished = '1' and N_reg = "101" and seq_Available='1' THEN -- Received an L
                     route_reg <= "01";
                     direction_reg <= '0';
                 END IF;
@@ -419,16 +419,16 @@ BEGIN
             ---------------------------------------------------------------------------------
             -- P and L commands
             ---------------------------------------------------------------------------------
-            WHEN PRINT_P => 
+            WHEN PRINT_P => -- Fill route and direction reg
                 route_reg <= "00";
                 direction_reg <= '0';
-            WHEN PRINT_L => 
+            WHEN PRINT_L => -- Fill route and direction reg
                 route_reg <= "01";
                 direction_reg <= '0';
-            WHEN PREP_P => 
+            WHEN PREP_P => -- Moving into P state so enable P component and next direction check is out
                 enP <= '1';
                 direction_reg <= '1';
-            WHEN PREP_L => 
+            WHEN PREP_L => -- Moving into L state so enable L component and next direction check is out
                 enL <= '1';
                 direction_reg <= '1';
             WHEN OTHERS =>
