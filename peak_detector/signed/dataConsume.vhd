@@ -21,7 +21,7 @@ entity dataConsume is
 end dataConsume;
 
 architecture Behavioral of dataConsume is
-  type state_type is (S0, S1, S2);
+  type state_type is (S0, S1, S2, S3);
   type signed_array is array (integer range <>) of signed(7 downto 0);
 
   signal curr_state, next_state: state_type;
@@ -51,7 +51,7 @@ begin
     if rising_edge(clk) then
       if reset = '1' then
         ctrlOut_state <= '0';
-      elsif (curr_state = S0 and start = '1') or (curr_state = S2 and counter < numWords_int) then
+      elsif (curr_state = S0 and start = '1') or (curr_state = S3 and counter < numWords_int) then
         ctrlOut_state <= not ctrlOut_state;
       end if;
     end if;
@@ -79,16 +79,15 @@ begin
   NextState: process(curr_state, start, edge_detected_ctrlIn)
   begin
     case curr_state is
-      when S0 =>
-        dataReady <= '0';
-        seqDone <= '0';
+      when S0 => -- Reset and check for start from command processor
         counter <= 0;
         peak_value <= (others => '0');
         peak_index <= 0;
         peak_found <= 0;
+        dataReady <= '0';
+        seqDone <= '0';
         lastThreeBytes <= (others => (others => '0'));
         numWords_int <= 0;
-        
         
         if start = '1' then
           -- Convert number of words from BCD to integer
@@ -101,8 +100,10 @@ begin
           next_state <= S0;
         end if;
 
-      when S1 =>
+      when S1 => -- Wait for data Gen to send byte and fill peaks/dataResults. . .
         if edge_detected_ctrlIn = '1' then
+          dataReady <= '0';
+          seqDone <= '0';
           counter <= counter + 1;
          
           -- 1. Update dataResults with next three values if the peak was recently found
@@ -160,14 +161,17 @@ begin
           next_state <= S1;
         end if;
 
-      when S2 =>
-        if counter < numWords_int then
-          if start = '1' then
-            dataReady <= '1';
-            next_state <= S1;
-          else
+      when S2 => -- Waiting for start from command processor or first run through
+        if start = '1' or counter = 1 then
+            next_state <= S3;
+        else 
             next_state <= S2;
-          end if;
+        end if;
+
+      when S3 => -- Check if should do another byte or stop
+        dataReady <= '1';
+        if counter < numWords_int then
+            next_state <= S1;
         else
           seqDone <= '1';
           next_state <= S0;
