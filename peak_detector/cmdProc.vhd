@@ -163,6 +163,8 @@ BEGIN
             WHEN PRINT_A => -- Wait for A to print
                 IF finished = '1' THEN
                     nextState <= N2;
+                ELSE 
+                    nextState <= PRINT_A;
                 END IF;
             WHEN N2 => -- Wait for next input
                 IF rxnow_reg = '1' THEN
@@ -217,7 +219,7 @@ BEGIN
             WHEN PRINT_N0 =>
                 IF finished = '1' THEN
                     IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN -- If received a digit
-                        nextState <= STARTING;
+                        nextState <= WAIT_CARRIAGE;
                     ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
                         nextState <= N2;
                     ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
@@ -238,12 +240,16 @@ BEGIN
             WHEN CARRIAGE_RETURN => -- Wait for carriage return to print
                 IF finished = '1' THEN
                     nextState <= WAIT_LINE;
+                ELSE
+                    nextState <= CARRIAGE_RETURN;
                 END IF; 
             WHEN WAIT_LINE =>
                 nextState <= LINE_FEED;
             WHEN LINE_FEED =>
                 IF finished = '1' THEN
                     nextState <= STARTING;
+                ELSE 
+                    nextState <= LINE_FEED; 
                 END IF;
             ---------------------------------------------------------------------------------
             -- Data Processor communication and bytes printed
@@ -290,10 +296,14 @@ BEGIN
             WHEN PRINT_P => -- Wait for valid P character to print
                 IF finished = '1' THEN
                     nextState <= WAIT_CARRIAGE;
+                ELSE 
+                    nextState <= PRINT_P;
                 END IF;
             WHEN PRINT_L => -- Wait for valid L character to print
                 IF finished = '1' THEN
                     nextState <= WAIT_CARRIAGE;
+                ELSE   
+                    nextState <= PRINT_L;
                 END IF;
             WHEN PREP_P => -- Prep route and direction reg if moving into P from inside A
                 nextState <= P;
