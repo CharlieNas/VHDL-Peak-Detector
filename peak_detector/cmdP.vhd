@@ -78,7 +78,7 @@ BEGIN
                 nextState <= WAITING;
             WHEN WAITING =>
                 IF finished_reg = '1' THEN
-                    IF b_index = 6 THEN
+                    IF b_index = 8 THEN
                         nextState <= IDLE;
                     ELSE
                         nextState <= PRINTING;
@@ -102,7 +102,7 @@ BEGIN
             dataIn <= fullData(b_index);
             b_index <= b_index + 1;
         ELSIF curState = WAITING AND finished_reg = '1' THEN
-            IF b_index = 6 THEN
+            IF b_index = 8 THEN
                 doneP <= '1';
                 b_index <= 0;
             END IF;
@@ -133,12 +133,14 @@ BEGIN
     format_chars: PROCESS (clk)
     BEGIN
         IF curState = IDLE AND enP_reg = '1' THEN
-            fullData(0) <= NIB_TO_ASCII(peakByte_reg(7 DOWNTO 4));  -- 16^1 char: first
-            fullData(1) <= NIB_TO_ASCII(peakByte_reg(3 DOWNTO 0));  -- 16^0 char: second
-            fullData(2) <= "00100000";                              -- " "  char: third
-            fullData(3) <= NIB_TO_ASCII(maxIndex(2));               -- 10^2 char: fourth
-            fullData(4) <= NIB_TO_ASCII(maxIndex(1));               -- 10^1 char: fitfh
-            fullData(5) <= NIB_TO_ASCII(maxIndex(0));               -- 10^0 char: sixth
+            fullData(0) <= "00001010";                              -- Line Feed (\n): seventh
+            fullData(1) <= "00001101";                              -- Carriage Return (\r): eighth
+            fullData(2) <= NIB_TO_ASCII(peakByte_reg(7 DOWNTO 4));  -- 16^1 char: first
+            fullData(3) <= NIB_TO_ASCII(peakByte_reg(3 DOWNTO 0));  -- 16^0 char: second
+            fullData(4) <= "00100000";                              -- " "  char: third
+            fullData(5) <= NIB_TO_ASCII(maxIndex(2));               -- 10^2 char: fourth
+            fullData(6) <= NIB_TO_ASCII(maxIndex(1));               -- 10^1 char: fitfh
+            fullData(7) <= NIB_TO_ASCII(maxIndex(0));               -- 10^0 char: sixth
 --            fullData(6) <= "00001010";                              -- Line Feed (\n): seventh
 --            fullData(7) <= "00001101";                              -- Carriage Return (\r): eighth
         END IF;
