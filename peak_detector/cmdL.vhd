@@ -6,39 +6,41 @@ library UNISIM;
 use UNISIM.VCOMPONENTS.ALL;
 --use UNISIM.VPKG.ALL;
 
-entity cmdL is
-    port (  
-      clk:		    in std_logic;                           
-      reset:		in std_logic;       
-      enL:           in std_logic;
-      dataResults:  in CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);                          
-      txdone:		in std_logic;                           
-      txData:	    out std_logic_vector (7 downto 0);      
-      txnow:		out std_logic;
-      doneL:         out std_logic                     
+ENTITY cmdL IS
+    PORT (  
+      clk:		    IN std_logic;                           
+      reset:		IN std_logic;       
+      enL:           IN std_logic;
+      dataResults:  IN CHAR_ARRAY_TYPE(0 TO RESULT_BYTE_NUM-1);                          
+      txdone:		IN std_logic;                           
+      txData:	    OUT std_logic_vector (7 DOWNTO 0);      
+      txnow:		OUT std_logic;
+      doneL:         OUT std_logic                     
     );
-end cmdL;
+END cmdL;
 
-architecture arch of cmdL is
+ARCHITECTURE arch OF cmdL IS
     TYPE state_type IS (IDLE, CHAR1, CHAR2, CHECK, SPACE);
     SIGNAL curState, nextState: state_type; 
-    SIGNAL dataIn: std_logic_vector (7 downto 0);
+    SIGNAL dataIn: std_logic_vector (7 DOWNTO 0);
     SIGNAL finished: std_logic;
     SIGNAL en: std_logic;
     SIGNAL i: natural := 0;
+    
     -----------------------------------------------------
     COMPONENT printer IS
-        port(
-            en:           in std_logic;                           
-            dataIn:       in std_logic_vector (7 downto 0);       
-            clk:		    in std_logic;                          
-            reset:		in std_logic;                           
-            txdone:		in std_logic;                           
-            txData:	    out std_logic_vector (7 downto 0);      
-            txnow:		out std_logic;                          
-            finished:     out std_logic   
+        PORT(
+            en:           IN std_logic;                           
+            dataIn:       IN std_logic_vector (7 DOWNTO 0);       
+            clk:		    IN std_logic;                          
+            reset:		IN std_logic;                           
+            txdone:		IN std_logic;                           
+            txData:	    OUT std_logic_vector (7 DOWNTO 0);      
+            txnow:		OUT std_logic;                          
+            finished:     OUT std_logic   
         );
     END COMPONENT;
+
     -----------------------------------------------------
     -- NIB_TO_ASCII: Converts a 4-bit nibble representation of a hex digit to its 8-bit ASCII equivalent.
     FUNCTION NIB_TO_ASCII (
@@ -57,8 +59,9 @@ architecture arch of cmdL is
         RETURN v_out;
     END NIB_TO_ASCII;
     -----------------------------------------------------
+
 BEGIN
-    p1: printer port map(en, dataIn, clk, reset, txdone, txData, txnow, finished);
+    p1: printer PORT MAP(en, dataIn, clk, reset, txdone, txData, txnow, finished);
     -----------------------------------------------------
     combi_nextState: PROCESS(curState, enL, finished, i)
     BEGIN
@@ -102,7 +105,7 @@ BEGIN
         IF curState = CHECK AND i = 7 THEN
             doneL <= '1';
             dataIn <= "00000000";
-        ELSIF curState = CHAR2 AND nextState = CHECK and finished = '1' THEN
+        ELSIF curState = CHAR2 AND nextState = CHECK AND finished = '1' THEN
             i <= i + 1;
         ELSIF curState = CHAR1 THEN
             dataIn <= NIB_TO_ASCII(dataResults(i)(7 downto 4));
@@ -113,7 +116,7 @@ BEGIN
         ELSIF curState = SPACE THEN
             dataIn <= "00100000";
             en <= '1';
-        ELSIF curState = IDLE and enL <= '1' THEN
+        ELSIF curState = IDLE AND enL <= '1' THEN
             i <= 0;
         END IF;
     END PROCESS; -- combi_output

@@ -176,7 +176,7 @@ begin
           end if;
 
           -- 3. Always keep track of the last three bytes to store them in the dataResults
-          --    when the peak is found
+          -- when the peak is found
           lastThreeBytes(2) <= lastThreeBytes(1);
           lastThreeBytes(1) <= lastThreeBytes(0);
           lastThreeBytes(0) <= signed(data);
