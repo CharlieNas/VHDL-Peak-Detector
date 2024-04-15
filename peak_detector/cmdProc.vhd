@@ -324,23 +324,6 @@ BEGIN
     END PROCESS;
 
 
-    store_route: PROCESS(clk)
-    BEGIN
-        IF clk'EVENT AND clk='1' THEN
-          IF en_route_reg='1' THEN
-            route_reg <= route;
-          END IF;
-        END IF;
-    END PROCESS;
-    
-    store_N: PROCESS(clk)
-    BEGIN
-        IF clk'EVENT AND clk='1' THEN
-          IF en_N_reg='1' THEN
-            N_reg <= N;
-          END IF;
-        END IF;
-    END PROCESS;
     
     store_NNN: PROCESS(clk)
     BEGIN
@@ -351,15 +334,6 @@ BEGIN
             NNN(1) <= NNN_val;
           ELSIF en_NNN_0='1' THEN
             NNN(0) <= NNN_val;
-          END IF;
-        END IF;
-    END PROCESS;
-    
-    store_direction: PROCESS(clk)
-    BEGIN
-        IF clk'EVENT AND clk='1' THEN
-          IF en_direction_reg='1' THEN
-            direction_reg <= direction;
           END IF;
         END IF;
     END PROCESS;
@@ -381,16 +355,10 @@ BEGIN
         dataIn <= "00000000";
         en <= '0';
         rxDone <= '0';
-        route <= "00";
-        en_route_reg <= '0';
-        N <= "111";
         NNN_val <= "0000";
-        en_N_reg <= '0';
         en_NNN_2 <= '0';
         en_NNN_1 <= '0';
         en_NNN_0 <= '0';
-        direction <= '0';
-        en_direction_reg <= '0';
         start <= '0';
         en_storedByte <= '0';
         enP <= '0';
@@ -481,23 +449,11 @@ BEGIN
             -- P and L commands
             ---------------------------------------------------------------------------------
             WHEN PRINT_P => -- Fill route and direction reg
-                route <= "00";
-                en_route_reg <= '1';
-                direction <= '0';
-                en_direction_reg <= '1';
             WHEN PRINT_L => -- Fill route and direction reg
-                route <= "01";
-                en_route_reg <= '1';
-                direction <= '0';
-                en_direction_reg <= '1';
             WHEN PREP_P => -- Moving into P state so enable P component and next direction check is out
                 enP <= '1';
-                direction <= '1';
-                en_direction_reg <= '1';
             WHEN PREP_L => -- Moving into L state so enable L component and next direction check is out
                 enL <= '1';
-                direction <= '1';
-                en_direction_reg <= '1';
             WHEN OTHERS =>
         END CASE;
     END PROCESS;
