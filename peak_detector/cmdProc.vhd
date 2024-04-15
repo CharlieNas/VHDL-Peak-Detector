@@ -319,6 +319,10 @@ BEGIN
                 ELSE   
                     nextState <= PRINT_L;
                 END IF;
+            WHEN PREP_P =>
+                nextState <= P;
+            WHEN PREP_L =>
+                nextState <= L;
             WHEN P => -- P component active
                 IF doneP = '1' THEN
                     nextState <= WAIT_CARRIAGE2;
