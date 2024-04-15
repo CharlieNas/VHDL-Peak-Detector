@@ -1,6 +1,6 @@
 library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
+use IEEE.STD_LOGIC_1164.all;
+use IEEE.NUMERIC_STD.all;
 use work.common_pack.all;
 
 entity dataConsume is
@@ -30,19 +30,23 @@ architecture Behavioral of dataConsume is
   signal prev_ctrlIn, ctrlOut_state: std_logic := '0';
   signal edge_detected_ctrlIn: std_logic := '0';
 
-  -- signals for data processing
+  -- signals to keep of fetched data
   signal numWords_int: integer := 0;
   signal counter: integer := 0;
+
+  -- signals for the peak detection algorithm
   signal peak_value: signed(7 downto 0) := (others => '0');
   signal peak_index: integer := 0;
   signal update_next_values: integer := 0;
   signal lastThreeBytes: signed_array(0 to 2) := (others => (others => '0'));
 
 begin
+  -- Detecting edge on ctrlIn
   edge_detected_ctrlIn <= ctrlIn XOR prev_ctrlIn;
   
   ---------------------------
   --  Edge detection
+  --  store previous value of ctrlIn to detect edge 
   ---------------------------
   CtrlInEdgeDetect: process(clk)
   begin
@@ -52,7 +56,9 @@ begin
   end process;
 
   ---------------------------
-  --  Two phase control
+  --  Toggle control output
+  -- CtrlOut is toggled when the program start
+  -- or when the system is in the CHECK_COMPLETE state and more data is expected.
   ---------------------------
   CtrlOutToggle: process(clk, reset)
   begin
@@ -68,6 +74,7 @@ begin
 
   ----------------------------
   --  Byte output
+  --  keep sending the bytes we read to the command processor
   ---------------------------
   ByteOutput: process(clk)
   begin
@@ -118,16 +125,15 @@ begin
           next_state <= IDLE;
         end if;
 
-      -- Wait for data Gen to send byte and fill dataResults 
-      -- keep track of the last three bytes received
+      -- Processing coming bytes finding peak and storing values in DataResults
       when PROCESS_DATA => 
         if edge_detected_ctrlIn = '1' then
           dataReady <= '0';
           seqDone <= '0';
           counter <= counter + 1;
          
-          -- 1. Update dataResults with next three values if the peak was recently found
-          -- We use update_next_values to keep track of how many values we have stored after the peak
+          -- 1. Update dataResults with next three values if the peak was recently found.
+          --    We use update_next_values to keep track of how many values we have stored after the peak
           if update_next_values > 0 then
             case update_next_values is
                 when 3 =>
@@ -142,8 +148,8 @@ begin
             update_next_values <= update_next_values - 1;
           end if;
           
-          -- 2. PeakDetection Process
-          -- If it's the first byte or the current byte is greater than the current peak
+          -- 2. Peak detection.
+          --    If it's the first byte or the current byte is greater than past peak value
           if counter = 0 or signed(data) > peak_value then
               peak_value <= signed(data);
               peak_index <= counter;
@@ -170,7 +176,7 @@ begin
           end if;
 
           -- 3. Always keep track of the last three bytes to store them in the dataResults
-          -- when the peak is found
+          --    when the peak is found
           lastThreeBytes(2) <= lastThreeBytes(1);
           lastThreeBytes(1) <= lastThreeBytes(0);
           lastThreeBytes(0) <= signed(data);
@@ -187,15 +193,19 @@ begin
         else 
             next_state <= WAIT_CMDP;
         end if;
+      
       -- Check if should do another byte or stop  
       when CHECK_COMPLETE =>
         dataReady <= '1';
+        -- If we haven't reached the number of words we need to process, keep going
         if counter < numWords_int then
             next_state <= PROCESS_DATA;
         else
+          -- If we have reached the number of words, the sequence is done
           seqDone <= '1';
           next_state <= IDLE;
         end if;
+      
       when others =>
         next_state <= IDLE;
     end case;
