@@ -208,18 +208,12 @@ BEGIN
             WHEN CARRIAGE_RETURN => -- Wait for carriage return to print
                 IF finished = '1' THEN
                     nextState <= WAIT_LINE;
-                END IF;
-            WHEN WAIT_LINE => -- Prep printing for line feed
+                END IF; 
+            WHEN WAIT_LINE =>
                 nextState <= LINE_FEED;
-            WHEN LINE_FEED => -- Wait for line feed to print
-                IF finished = '1' AND route_reg = "00" AND direction_reg = '0' THEN -- Route = P and Direction = Into
-                    nextState <= PREP_P;
-                ELSIF finished = '1' AND route_reg = "01" AND direction_reg = '0' THEN -- Route = L and Direction = Into
-                    nextState <= PREP_L;
-                ELSIF finished = '1' AND route_reg = "10" AND direction_reg = '0' THEN -- Route = A 
+            WHEN LINE_FEED =>
+                IF finished = '1' THEN
                     nextState <= STARTING;
-                ELSIF finished = '1' AND direction_reg = '1' THEN -- Direction = Out
-                    nextState <= INIT;
                 END IF;
             ---------------------------------------------------------------------------------
             -- Data Processor communication and bytes printed
@@ -347,13 +341,14 @@ BEGIN
     ---------------------------
     combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg, N_reg, storedByte)
     BEGIN
+        dataIn <= "00000000";
         en <= '0';
         rxDone <= '0';
         route <= "00";
         en_route_reg <= '0';
         N <= "111";
-        en_N_reg <= '0';
         NNN_val <= "0000";
+        en_N_reg <= '0';
         en_NNN_2 <= '0';
         en_NNN_1 <= '0';
         en_NNN_0 <= '0';
@@ -374,11 +369,6 @@ BEGIN
             ---------------------------------------------------------------------------------
             -- A command Inputs
             ---------------------------------------------------------------------------------
-            WHEN PRINT_A => -- Route is into A
-                route <= "10";
-                en_route_reg <= '1';
-                direction <= '0';
-                en_direction_reg <= '1';
             WHEN N2 => -- Prep to echo input, fill N_reg depending on input, if digit input fill NNN
                 IF rxnow_reg = '1' THEN 
                     dataIn <= rxData_reg;
