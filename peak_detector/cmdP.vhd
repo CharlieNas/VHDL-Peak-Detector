@@ -8,37 +8,37 @@ use UNISIM.VCOMPONENTS.ALL;
 
 ENTITY cmdP IS
     PORT (
-        clk:		in std_logic;                           --i
-        reset:		in std_logic;                           --i
-        en:         in std_logic;                           --i
-        peakByte:   in std_logic_vector (7 downto 0);       --i
-        maxIndex:   in BCD_ARRAY_TYPE(2 downto 0);          --i
-        txdone:		in std_logic;                           --i
-        txData:	    out std_logic_vector (7 downto 0);      --o
-        txnow:		out std_logic;                          --o
-        doneP:       out std_logic                           --o
+        clk:		IN std_logic;                           --i
+        reset:		IN std_logic;                           --i
+        en:         IN std_logic;                           --i
+        peakByte:   IN std_logic_vector (7 DOWNTO 0);       --i
+        maxIndex:   IN BCD_ARRAY_TYPE(2 DOWNTO 0);          --i
+        txdone:		IN std_logic;                           --i
+        txData:	    OUT std_logic_vector (7 DOWNTO 0);      --o
+        txnow:		OUT std_logic;                          --o
+        doneP:       OUT std_logic                           --o
     );
 END cmdP;
 
-ARCHITECTURE arch of cmdP IS
+ARCHITECTURE arch OF cmdP IS
     TYPE state_type IS (IDLE, PRINTING, WAITING);
     SIGNAL curState, nextState: state_type;
     
-    TYPE ASCII_SEQUENCE IS array (0 to 5) of std_logic_vector (7 downto 0);
+    TYPE ASCII_SEQUENCE IS ARRAY (0 TO 5) OF std_logic_vector (7 DOWNTO 0);
     SIGNAL fullData: ASCII_SEQUENCE;
     
     SIGNAL enP_reg, print_en, finished: STD_LOGIC;
     SIGNAL b_index: natural := 0; --byte index
-    SIGNAL peakByte_reg : STD_LOGIC_VECTOR (7 downto 0);
-    SIGNAL maxIndex_reg: BCD_ARRAY_TYPE(2 downto 0);
-    SIGNAL dataIn : STD_LOGIC_VECTOR (7 downto 0);
+    SIGNAL peakByte_reg : STD_LOGIC_VECTOR (7 DOWNTO 0);
+    SIGNAL maxIndex_reg: BCD_ARRAY_TYPE(2 DOWNTO 0);
+    SIGNAL dataIn : STD_LOGIC_VECTOR (7 DOWNTO 0);
     SIGNAL finished_reg: STD_LOGIC;
     COMPONENT printer IS
         PORT(
-            en, clk, reset, txdone : in std_logic;
-            dataIn: in std_logic_vector(7 downto 0);
-            txData: out std_logic_vector(7 downto 0);
-            txnow, finished: out std_logic
+            en, clk, reset, txdone : IN std_logic;
+            dataIn: IN std_logic_vector(7 DOWNTO 0);
+            txData: OUT std_logic_vector(7 DOWNTO 0);
+            txnow, finished: OUT std_logic
             );
     END COMPONENT;
     
@@ -62,12 +62,12 @@ ARCHITECTURE arch of cmdP IS
 BEGIN
      -----------------------------------------------------
 
-    pr: printer port map (print_en, clk, reset, txdone, dataIn, txData, txnow, finished);
+    pr: printer PORT MAP (print_en, clk, reset, txdone, dataIn, txData, txnow, finished);
     
     -----------------------------------------------------
     combi_nextState: PROCESS(curState, enP_reg, finished_reg)
     BEGIN
-        CASE curState is
+        CASE curState IS
             WHEN IDLE =>
                 IF enP_reg = '1' THEN
                     nextState <= PRINTING;
