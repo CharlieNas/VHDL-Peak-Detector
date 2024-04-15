@@ -29,7 +29,7 @@ ENTITY cmdProc IS
 end cmdProc;
 
 ARCHITECTURE arch OF cmdProc IS
-    TYPE state_type IS (INIT, RESTART, VALID, PRINT_A, PRINT_P, PRINT_L, PRINT_N2, PRINT_N1, PRINT_N0, N2, N1, N0, ECHO, WAIT_CARRIAGE, CARRIAGE_RETURN, WAIT_LINE, LINE_FEED, STARTING, DATAPROC, PREP_HEX1, HEX1, PREP_HEX2, HEX2, PREP_SPACE, SPACE, PREP_P, PREP_L, P, L);
+    TYPE state_type IS (INIT, RESTART, VALID, PRINT_A, PRINT_P, PRINT_L, PRINT_N2, PRINT_N1, PRINT_N0, N2, N1, N0, WAIT_CARRIAGE, CARRIAGE_RETURN, WAIT_LINE, LINE_FEED, STARTING, DATAPROC, PREP_HEX1, HEX1, PREP_HEX2, HEX2, PREP_SPACE, SPACE, PREP_P, PREP_L, P, L);
     SIGNAL curState, nextState: state_type; 
     SIGNAL enP, enL, en: std_logic; 
     SIGNAL doneP, doneL, finished: std_logic;
@@ -42,10 +42,7 @@ ARCHITECTURE arch OF cmdProc IS
     SIGNAL maxIndex_stored: BCD_ARRAY_TYPE(2 DOWNTO 0);  
     SIGNAL dataResults_stored: CHAR_ARRAY_TYPE(0 TO RESULT_BYTE_NUM-1);
     -- Pathway registers
-    SIGNAL en_direction_reg, en_N_reg, en_route_reg, en_NNN_2, en_NNN_1, en_NNN_0, en_storedByte: STD_LOGIC;
-    SIGNAL direction, direction_reg: std_logic; -- Going into or out of P/L
-    SIGNAL route, route_reg: std_logic_vector (1 DOWNTO 0); -- Going into A/P/L
-    SIGNAL N, N_reg: std_logic_vector (2 DOWNTO 0); -- CAme from A, N2, N1 or N0
+    SIGNAL en_NNN_2, en_NNN_1, en_NNN_0, en_storedByte: STD_LOGIC;
     SIGNAL NNN: BCD_ARRAY_TYPE(2 DOWNTO 0);
     SIGNAL NNN_val: STD_LOGIC_VECTOR(3 DOWNTO 0);
     SIGNAL storedByte: UNSIGNED(7 DOWNTO 0);
@@ -129,7 +126,7 @@ BEGIN
     ---------------------------
     -- Combinatorial Inputs
     ---------------------------
-    combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneL, doneP, finished, dataReady_reg, N_reg, direction_reg, route_reg)
+    combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneL, doneP, finished, dataReady_reg)
     BEGIN
         CASE curState IS
             ---------------------------------------------------------------------------------
@@ -379,7 +376,7 @@ BEGIN
     ---------------------------
     -- Combinatorial Outputs
     ---------------------------
-    combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg, N_reg, storedByte)
+    combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg, storedByte)
     BEGIN
         dataIn <= "00000000";
         en <= '0';
