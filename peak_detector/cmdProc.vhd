@@ -23,7 +23,7 @@ ENTITY cmdProc IS
       dataReady: IN std_logic;                                   --i
       byte: IN std_logic_vector(7 DOWNTO 0);                     --i
       maxIndex: IN BCD_ARRAY_TYPE(2 DOWNTO 0);                   --i
-      dataResults: IN CHAR_ARRAY_TYPE(0 to_integer(sig) RESULT_BYTE_NUM-1);   --i
+      dataResults: IN CHAR_ARRAY_TYPE(0 TO RESULT_BYTE_NUM-1);   --i
       seqDone: IN std_logic                                      --i
     );
 end cmdProc;
