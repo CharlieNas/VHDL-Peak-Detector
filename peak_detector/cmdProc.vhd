@@ -42,10 +42,12 @@ ARCHITECTURE arch OF cmdProc IS
     SIGNAL maxIndex_stored: BCD_ARRAY_TYPE(2 DOWNTO 0);  
     SIGNAL dataResults_stored: CHAR_ARRAY_TYPE(0 TO RESULT_BYTE_NUM-1);
     -- Pathway registers
-    SIGNAL direction_reg: std_logic; -- Going into or out of P/L
-    SIGNAL route_reg: std_logic_vector (1 DOWNTO 0); -- Going into A/P/L
-    SIGNAL N_reg: std_logic_vector (2 DOWNTO 0); -- CAme from A, N2, N1 or N0
+    SIGNAL en_direction_reg, en_N_reg, en_route_reg, en_NNN_2, en_NNN_1, en_NNN_0, en_storedByte: STD_LOGIC;
+    SIGNAL direction, direction_reg: std_logic; -- Going into or out of P/L
+    SIGNAL route, route_reg: std_logic_vector (1 DOWNTO 0); -- Going into A/P/L
+    SIGNAL N, N_reg: std_logic_vector (2 DOWNTO 0); -- CAme from A, N2, N1 or N0
     SIGNAL NNN: BCD_ARRAY_TYPE(2 DOWNTO 0);
+    SIGNAL NNN_val: STD_LOGIC_VECTOR(3 DOWNTO 0);
     SIGNAL storedByte: UNSIGNED(7 DOWNTO 0);
     --signals for main:
     SIGNAL txnow_M: std_logic;
@@ -55,7 +57,7 @@ ARCHITECTURE arch OF cmdProc IS
     SIGNAL txnow_P: std_logic;
     --signals for L
     SIGNAL txdata_L: std_logic_vector(7 DOWNTO 0);
-    SIGNAL txnow_L: std_logic; 
+    SIGNAL txnow_L: std_logic;
 
     ---------------------------
     -- Component Definitions
@@ -291,16 +293,78 @@ BEGIN
     END PROCESS;
 
 
+    store_route: PROCESS(clk)
+    BEGIN
+        IF clk'EVENT AND clk='1' THEN
+          IF en_route_reg='1' THEN
+            route_reg <= route;
+          END IF;
+        END IF;
+    END PROCESS;
+    
+    store_N: PROCESS(clk)
+    BEGIN
+        IF clk'EVENT AND clk='1' THEN
+          IF en_N_reg='1' THEN
+            N_reg <= N;
+          END IF;
+        END IF;
+    END PROCESS;
+    
+    store_NNN: PROCESS(clk)
+    BEGIN
+        IF clk'EVENT AND clk='1' THEN
+          IF en_NNN_2='1' THEN
+            NNN(2) <= NNN_val;
+          ELSIF en_NNN_1='1' THEN
+            NNN(1) <= NNN_val;
+          ELSIF en_NNN_0='1' THEN
+            NNN(0) <= NNN_val;
+          END IF;
+        END IF;
+    END PROCESS;
+    
+    store_direction: PROCESS(clk)
+    BEGIN
+        IF clk'EVENT AND clk='1' THEN
+          IF en_direction_reg='1' THEN
+            direction_reg <= direction;
+          END IF;
+        END IF;
+    END PROCESS;
+    
+    store_byte: PROCESS(clk)
+    BEGIN
+        IF clk'EVENT AND clk='1' THEN
+          IF en_storedByte='1' THEN
+            storedByte <= UNSIGNED(byte_reg);
+          END IF;
+        END IF;
+    END PROCESS;
+    
     ---------------------------
     -- Combinatorial Outputs
     ---------------------------
     combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg, N_reg, storedByte)
     BEGIN
-        enP <= '0';
-        enL <= '0';
+        dataIn <= "00000000";
         en <= '0';
         rxDone <= '0';
+        route <= "00";
+        en_route_reg <= '0';
+        N <= "111";
+        en_N_reg <= '0';
+        en_NNN_2 <= '0';
+        en_NNN_1 <= '0';
+        NNN_val <= "0000";
+        en_NNN_0 <= '0';
+        direction <= '0';
+        en_direction_reg <= '0';
         start <= '0';
+        numWords_bcd <= ("0000", "0000", "0000");
+        en_storedByte <= '0';
+        enP <= '0';
+        enL <= '0';
         CASE curState IS
             ---------------------------------------------------------------------------------
             -- Central FSM
@@ -313,23 +377,30 @@ BEGIN
             -- A command Inputs
             ---------------------------------------------------------------------------------
             WHEN PRINT_A => -- Route is into A
-                route_reg <= "10";
+                route <= "10";
+                en_route_reg <= '1';
             WHEN N2 => -- Prep to echo input, fill N_reg depending on input, if digit input fill NNN
                 IF rxnow_reg = '1' THEN 
                     dataIn <= rxData_reg;
                     rxDone <= '1';
                     en <= '1';
                     IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN -- If received a digit
-                        N_reg <= "000"; -- Move into N1
-                        NNN(2) <= rxData_reg(3 downto 0); -- Store first digit in NNN
+                        N <= "000"; -- Move into N1
+                        en_N_reg <= '1';
+                        NNN_val <= rxData_reg(3 downto 0); -- Store first digit in NNN
+                        en_NNN_2 <= '1';
                     ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
-                        N_reg <= "011";
+                        N <= "011";
+                        en_N_reg <= '1';
                     ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
-                        N_reg <= "100";
+                        N <= "100";
+                        en_N_reg <= '1';
                     ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
-                        N_reg <= "101";
+                        N <= "101";
+                        en_N_reg <= '1';
                     ELSE 
-                        N_reg <= "111";
+                        N <= "111";
+                        en_N_reg <= '1';
                     END IF;
                 END IF;
             WHEN N1 => -- Prep to echo input, fill N_reg depending on input, if digit input fill NNN
@@ -338,16 +409,22 @@ BEGIN
                     rxDone <= '1';
                     en <= '1';
                     IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN -- If received a digit
-                        N_reg <= "001";
-                        NNN(1) <= rxData_reg(3 downto 0);
-                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN -- If received an A
-                        N_reg <= "011";
+                        N <= "001"; -- Move into N0
+                        en_N_reg <= '1';
+                        NNN_val <= rxData_reg(3 downto 0); -- Store second digit in NNN
+                        en_NNN_1 <= '1';
+                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
+                        N <= "011";
+                        en_N_reg <= '1';
                     ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
-                        N_reg <= "100";
+                        N <= "100";
+                        en_N_reg <= '1';
                     ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
-                        N_reg <= "101";
+                        N <= "101";
+                        en_N_reg <= '1';
                     ELSE 
-                        N_reg <= "111";
+                        N <= "111";
+                        en_N_reg <= '1';
                     END IF;
                 END IF;
             WHEN N0 => -- Prep to echo input, fill N_reg depending on input, if digit input fill NNN
@@ -356,25 +433,35 @@ BEGIN
                     rxDone <= '1';
                     en <= '1';
                     IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN -- If received a digit
-                        N_reg <= "010";
-                        NNN(0) <= rxData_reg(3 downto 0);
-                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN -- If received an A
-                        N_reg <= "011";
+                        N <= "010"; -- Move into N1
+                        en_N_reg <= '1';
+                        NNN_val <= rxData_reg(3 downto 0); -- Store first digit in NNN
+                        en_NNN_0 <= '1';
+                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
+                        N <= "011";
+                        en_N_reg <= '1';
                     ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
-                        N_reg <= "100";
+                        N <= "100";
+                        en_N_reg <= '1';
                     ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
-                        N_reg <= "101";
+                        N <= "101";
+                        en_N_reg <= '1';
                     ELSE 
-                        N_reg <= "111";
+                        N <= "111";
+                        en_N_reg <= '1';
                     END IF;
                 END IF;
             WHEN ECHO => -- Wait for printing and pick route depending on N_reg
                 IF finished = '1' and N_reg = "100" and seq_Available='1' THEN -- Received a P
-                    route_reg <= "00";
-                    direction_reg <= '0';
+                    route <= "00";
+                    en_route_reg <= '1';
+                    direction <= '0';
+                    en_direction_reg <= '1';
                 ELSIF finished = '1' and N_reg = "101" and seq_Available='1' THEN -- Received an L
-                    route_reg <= "01";
-                    direction_reg <= '0';
+                    route <= "01";
+                    en_route_reg <= '1';
+                    direction <= '0';
+                    en_direction_reg <= '1';
                 END IF;
             ---------------------------------------------------------------------------------
             -- Carriage Return and Line Feed
@@ -395,7 +482,7 @@ BEGIN
                 END IF;
             WHEN DATAPROC => -- Store byte once received
                 IF dataReady_reg='1' THEN
-                    storedByte <= UNSIGNED(byte_reg);
+                    en_storedByte <= '1';
                 END IF;
             WHEN PREP_HEX1 => -- Prep printing for first Hex Digit
                 IF storedByte(7 DOWNTO 4) >= "1010" AND storedByte(7 DOWNTO 4) <= "1111" THEN
@@ -420,17 +507,23 @@ BEGIN
             -- P and L commands
             ---------------------------------------------------------------------------------
             WHEN PRINT_P => -- Fill route and direction reg
-                route_reg <= "00";
-                direction_reg <= '0';
+                route <= "00";
+                en_route_reg <= '1';
+                direction <= '0';
+                en_direction_reg <= '1';
             WHEN PRINT_L => -- Fill route and direction reg
-                route_reg <= "01";
-                direction_reg <= '0';
+                route <= "01";
+                en_route_reg <= '1';
+                direction <= '0';
+                en_direction_reg <= '1';
             WHEN PREP_P => -- Moving into P state so enable P component and next direction check is out
                 enP <= '1';
-                direction_reg <= '1';
+                direction <= '1';
+                en_direction_reg <= '1';
             WHEN PREP_L => -- Moving into L state so enable L component and next direction check is out
                 enL <= '1';
-                direction_reg <= '1';
+                direction <= '1';
+                en_direction_reg <= '1';
             WHEN OTHERS =>
         END CASE;
     END PROCESS;
