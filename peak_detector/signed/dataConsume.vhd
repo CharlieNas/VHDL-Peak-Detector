@@ -1,6 +1,6 @@
 library IEEE;
-use IEEE.STD_LOGIC_1164.ALL;
-use IEEE.NUMERIC_STD.ALL;
+use IEEE.STD_LOGIC_1164.all;
+use IEEE.NUMERIC_STD.all;
 use work.common_pack.all;
 
 entity dataConsume is
@@ -21,24 +21,33 @@ entity dataConsume is
 end dataConsume;
 
 architecture Behavioral of dataConsume is
-  type state_type is (S0, S1, S2, S3);
+  -- Declaring types
+  type state_type is (IDLE, PROCESS_DATA, WAIT_CMDP, CHECK_COMPLETE);
   type signed_array is array (integer range <>) of signed(7 downto 0);
 
+  -- signals for state machine and two phase control
   signal curr_state, next_state: state_type;
   signal prev_ctrlIn, ctrlOut_state: std_logic := '0';
   signal edge_detected_ctrlIn: std_logic := '0';
 
+  -- signals to keep of fetched data
   signal numWords_int: integer := 0;
   signal counter: integer := 0;
 
+  -- signals for the peak detection algorithm
   signal peak_value: signed(7 downto 0) := (others => '0');
   signal peak_index: integer := 0;
-  signal peak_found: integer := 0;
+  signal update_next_values: integer := 0;
   signal lastThreeBytes: signed_array(0 to 2) := (others => (others => '0'));
 
 begin
+  -- Detecting edge on ctrlIn
   edge_detected_ctrlIn <= ctrlIn XOR prev_ctrlIn;
   
+  ---------------------------
+  --  Edge detection
+  --  store previous value of ctrlIn to detect edge 
+  ---------------------------
   CtrlInEdgeDetect: process(clk)
   begin
     if rising_edge(clk) then
@@ -46,18 +55,27 @@ begin
     end if;
   end process;
 
+  ---------------------------
+  --  Toggle control output
+  -- CtrlOut is toggled when the program start
+  -- or when the system is in the CHECK_COMPLETE state and more data is expected.
+  ---------------------------
   CtrlOutToggle: process(clk, reset)
   begin
     if rising_edge(clk) then
       if reset = '1' then
         ctrlOut_state <= '0';
-      elsif (curr_state = S0 and start = '1') or (curr_state = S3 and counter < numWords_int) then
+      elsif (curr_state = IDLE and start = '1') or (curr_state = CHECK_COMPLETE and counter < numWords_int) then
         ctrlOut_state <= not ctrlOut_state;
       end if;
     end if;
     ctrlOut <= ctrlOut_state;
   end process;
 
+  ----------------------------
+  --  Byte output
+  --  keep sending the bytes we read to the command processor
+  ---------------------------
   ByteOutput: process(clk)
   begin
     if rising_edge(clk) then
@@ -65,25 +83,32 @@ begin
     end if;
   end process;
 
+  --------------------------------
+  --  State Machine Transitions
+  --------------------------------
   StateMachine: process(clk, reset)
   begin
     if rising_edge(clk) then
       if reset = '1' then
-        curr_state <= S0;
+        curr_state <= IDLE;
       else
         curr_state <= next_state;
       end if;
     end if;
   end process;
 
+  ---------------------------
+  -- Determine Next State
+  ---------------------------
   NextState: process(curr_state, start, edge_detected_ctrlIn)
   begin
     case curr_state is
-      when S0 => -- Reset and check for start from command processor
+      -- Reset and check for start from command processor
+      when IDLE => 
         counter <= 0;
         peak_value <= (others => '0');
         peak_index <= 0;
-        peak_found <= 0;
+        update_next_values <= 0;
         dataReady <= '0';
         seqDone <= '0';
         lastThreeBytes <= (others => (others => '0'));
@@ -95,21 +120,22 @@ begin
                           to_integer(unsigned(numWords_bcd(1))) * 10 + 
                           to_integer(unsigned(numWords_bcd(0))); 
 
-          next_state <= S1;
+          next_state <= PROCESS_DATA;
         else
-          next_state <= S0;
+          next_state <= IDLE;
         end if;
 
-      when S1 => -- Wait for data Gen to send byte and fill peaks/dataResults. . .
+      -- Processing coming bytes finding peak and storing values in DataResults
+      when PROCESS_DATA => 
         if edge_detected_ctrlIn = '1' then
           dataReady <= '0';
           seqDone <= '0';
           counter <= counter + 1;
          
-          -- 1. Update dataResults with next three values if the peak was recently found
-          -- We use peak_found to keep track of how many values we have stored after the peak
-          if peak_found > 0 then
-            case peak_found is
+          -- 1. Update dataResults with next three values if the peak was recently found.
+          --    We use update_next_values to keep track of how many values we have stored after the peak
+          if update_next_values > 0 then
+            case update_next_values is
                 when 3 =>
                     dataResults(2) <= std_logic_vector(signed(data));
                 when 2 =>
@@ -119,11 +145,11 @@ begin
                 when others =>
                     null;
             end case;
-            peak_found <= peak_found - 1;
+            update_next_values <= update_next_values - 1;
           end if;
           
-          -- 2. PeakDetection Process
-          -- If it's the first byte or the current byte is greater than the current peak
+          -- 2. Peak detection.
+          --    If it's the first byte or the current byte is greater than past peak value
           if counter = 0 or signed(data) > peak_value then
               peak_value <= signed(data);
               peak_index <= counter;
@@ -144,41 +170,44 @@ begin
               dataResults(1) <= (others => '0');
               dataResults(0) <= (others => '0');
               
-              -- Update the peak found counter to indicate that we need to store the next three values
+              -- Update update_next_values to indicate that we need to store the next three values
               -- in the following iterations
-              peak_found <= 3;
-              
+              update_next_values <= 3;
           end if;
 
           -- 3. Always keep track of the last three bytes to store them in the dataResults
-          --    when the peak is found
+          -- when the peak is found
           lastThreeBytes(2) <= lastThreeBytes(1);
           lastThreeBytes(1) <= lastThreeBytes(0);
           lastThreeBytes(0) <= signed(data);
           
-          next_state <= S2;
+          next_state <= WAIT_CMDP;
         else
-          next_state <= S1;
+          next_state <= PROCESS_DATA;
         end if;
 
-      when S2 => -- Waiting for start from command processor or first run through
+      -- Waiting for start from command processor or first run through  
+      when WAIT_CMDP =>
         if start = '1' or counter = 1 then
-            next_state <= S3;
+            next_state <= CHECK_COMPLETE;
         else 
-            next_state <= S2;
+            next_state <= WAIT_CMDP;
         end if;
-
-      when S3 => -- Check if should do another byte or stop
+      
+      -- Check if should do another byte or stop  
+      when CHECK_COMPLETE =>
         dataReady <= '1';
+        -- If we haven't reached the number of words we need to process, keep going
         if counter < numWords_int then
-            next_state <= S1;
+            next_state <= PROCESS_DATA;
         else
+          -- If we have reached the number of words, the sequence is done
           seqDone <= '1';
-          next_state <= S0;
+          next_state <= IDLE;
         end if;
-        
+      
       when others =>
-        next_state <= S0;
+        next_state <= IDLE;
     end case;
   end process;
 
