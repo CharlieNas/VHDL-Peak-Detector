@@ -29,7 +29,7 @@ ENTITY cmdProc IS
 end cmdProc;
 
 ARCHITECTURE arch OF cmdProc IS
-    TYPE state_type IS (INIT, RESTART, VALID, PRINT_A, PRINT_P, PRINT_L, PRINT_N2, PRINT_N1, PRINT_N0, N2, N1, N0, WAIT_CARRIAGE, CARRIAGE_RETURN, WAIT_LINE, LINE_FEED, STARTING, DATAPROC, PREP_HEX1, HEX1, PREP_HEX2, HEX2, PREP_SPACE, SPACE, PREP_P, PREP_L, P, L);
+    TYPE state_type IS (INIT, RESTART, VALID, PRINT_A, PRINT_P, PRINT_L, PRINT_N2, PRINT_N1, PRINT_N0, N2, N1, N0, WAIT_CARRIAGE, CARRIAGE_RETURN, WAIT_LINE, LINE_FEED, WAIT_CARRIAGE2, CARRIAGE_RETURN2, WAIT_LINE2, LINE_FEED2, STARTING, DATAPROC, PREP_HEX1, HEX1, PREP_HEX2, HEX2, PREP_SPACE, SPACE, PREP_P, PREP_L, P, L);
     SIGNAL curState, nextState: state_type; 
     SIGNAL enP, enL, en: std_logic; 
     SIGNAL doneP, doneL, finished: std_logic;
@@ -272,7 +272,7 @@ BEGIN
             WHEN HEX2 => -- Wait for printing for second Hex Digit
                 IF finished ='1' THEN
                     IF seq_Available ='1' THEN ----------------------------------------------------- 
-                        nextState <= INIT;
+                        nextState <= WAIT_CARRIAGE2;
                     ELSE
                         nextState <= PREP_SPACE;
                     END IF;
@@ -287,34 +287,47 @@ BEGIN
                 ELSE
                     nextState <= SPACE;
                 END IF;
+
+            WHEN WAIT_CARRIAGE2 => -- Prep printing for carriage return
+                nextState <= CARRIAGE_RETURN2;
+            WHEN CARRIAGE_RETURN2 => -- Wait for carriage return to print
+                IF finished = '1' THEN
+                    nextState <= WAIT_LINE2;
+                ELSE
+                    nextState <= CARRIAGE_RETURN2;
+                END IF; 
+            WHEN WAIT_LINE2 =>
+                nextState <= LINE_FEED2;
+            WHEN LINE_FEED2 =>
+                IF finished = '1' THEN
+                    nextState <= INIT;
+                ELSE 
+                    nextState <= LINE_FEED2; 
+                END IF;
             ---------------------------------------------------------------------------------
             -- P and L commands
             ---------------------------------------------------------------------------------
             WHEN PRINT_P => -- Wait for valid P character to print
                 IF finished = '1' THEN
-                    nextState <= WAIT_CARRIAGE;
+                    nextState <= P;
                 ELSE 
                     nextState <= PRINT_P;
                 END IF;
             WHEN PRINT_L => -- Wait for valid L character to print
                 IF finished = '1' THEN
-                    nextState <= WAIT_CARRIAGE;
+                    nextState <= L;
                 ELSE   
                     nextState <= PRINT_L;
                 END IF;
-            WHEN PREP_P => -- Prep route and direction reg if moving into P from inside A
-                nextState <= P;
-            WHEN PREP_L => -- Prep route and direction reg if moving into L from inside A
-                nextState <= L;
             WHEN P => -- P component active
                 IF doneP = '1' THEN
-                    nextState <= WAIT_CARRIAGE;
+                    nextState <= WAIT_CARRIAGE2;
                 ELSE
                     nextState <= P;
                 END IF;
             WHEN L => -- L component active
                 IF doneL = '1' THEN
-                    nextState <= WAIT_CARRIAGE;
+                    nextState <= WAIT_CARRIAGE2;
                 ELSE
                     nextState <= L;
                 END IF;
@@ -416,6 +429,12 @@ BEGIN
             WHEN WAIT_LINE => -- Prep printing for line feed
                 dataIn <= "00001010";
                 en <= '1';
+            WHEN WAIT_CARRIAGE2 => -- Prep printing for carriage return
+                dataIn <= "00001101";
+                en <= '1';
+            WHEN WAIT_LINE2 => -- Prep printing for line feed
+                dataIn <= "00001010";
+                en <= '1';
             ---------------------------------------------------------------------------------
             -- Data Processor communication and bytes printed
             ---------------------------------------------------------------------------------
@@ -448,11 +467,9 @@ BEGIN
             ---------------------------------------------------------------------------------
             -- P and L commands
             ---------------------------------------------------------------------------------
-            WHEN PRINT_P => -- Fill route and direction reg
-            WHEN PRINT_L => -- Fill route and direction reg
-            WHEN PREP_P => -- Moving into P state so enable P component and next direction check is out
+            WHEN PRINT_P => 
                 enP <= '1';
-            WHEN PREP_L => -- Moving into L state so enable L component and next direction check is out
+            WHEN PRINT_L => -- Fill route and direction reg
                 enL <= '1';
             WHEN OTHERS =>
         END CASE;
