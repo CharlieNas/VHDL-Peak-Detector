@@ -175,10 +175,10 @@ BEGIN
                         nextState <= N1;
                     ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
                         nextState <= N2;
-                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
-                        nextState <= P;
-                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
-                        nextState <= L;
+                    ELSIF (rxData_reg = "01010000" OR rxData_reg = "01110000") and seq_Available = '1' THEN -- If received a P
+                        nextState <= PREP_P;
+                    ELSIF (rxData_reg = "01001100" OR rxData_reg = "01101100") and seq_Available = '1' THEN -- If received an L
+                        nextState <= PREP_L;
                     ELSE 
                         nextState <= INIT;
                     END IF;
@@ -197,10 +197,10 @@ BEGIN
                         nextState <= N0;
                     ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
                         nextState <= N1;
-                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
-                        nextState <= P;
-                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
-                        nextState <= L;
+                    ELSIF (rxData_reg = "01010000" OR rxData_reg = "01110000") and seq_Available = '1' THEN -- If received a P
+                        nextState <= PREP_P;
+                    ELSIF (rxData_reg = "01001100" OR rxData_reg = "01101100") and seq_Available = '1' THEN -- If received an L
+                        nextState <= PREP_L;
                     ELSE 
                         nextState <= INIT;
                     END IF;
@@ -219,10 +219,10 @@ BEGIN
                         nextState <= WAIT_CARRIAGE;
                     ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
                         nextState <= N2;
-                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
-                        nextState <= P;
-                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
-                        nextState <= L;
+                    ELSIF (rxData_reg = "01010000" OR rxData_reg = "01110000") and seq_Available = '1' THEN -- If received a P
+                        nextState <= PREP_P;
+                    ELSIF (rxData_reg = "01001100" OR rxData_reg = "01101100") and seq_Available = '1' THEN -- If received an L
+                        nextState <= PREP_L;
                     ELSE 
                         nextState <= INIT;
                     END IF;
@@ -309,13 +309,13 @@ BEGIN
             ---------------------------------------------------------------------------------
             WHEN PRINT_P => -- Wait for valid P character to print
                 IF finished = '1' THEN
-                    nextState <= P;
+                    nextState <= PREP_P;
                 ELSE 
                     nextState <= PRINT_P;
                 END IF;
             WHEN PRINT_L => -- Wait for valid L character to print
                 IF finished = '1' THEN
-                    nextState <= L;
+                    nextState <= PREP_L;
                 ELSE   
                     nextState <= PRINT_L;
                 END IF;
@@ -467,9 +467,9 @@ BEGIN
             ---------------------------------------------------------------------------------
             -- P and L commands
             ---------------------------------------------------------------------------------
-            WHEN PRINT_P => 
+            WHEN PREP_P => 
                 enP <= '1';
-            WHEN PRINT_L => -- Fill route and direction reg
+            WHEN PREP_L => -- Fill route and direction reg
                 enL <= '1';
             WHEN OTHERS =>
         END CASE;
