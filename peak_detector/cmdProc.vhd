@@ -29,7 +29,7 @@ ENTITY cmdProc IS
 end cmdProc;
 
 ARCHITECTURE arch OF cmdProc IS
-    TYPE state_type IS (INIT, RESTART, VALID, PRINT_A, PRINT_P, PRINT_L, N2, N1, N0, ECHO, WAIT_CARRIAGE, CARRIAGE_RETURN, WAIT_LINE, LINE_FEED, STARTING, DATAPROC, PREP_HEX1, HEX1, PREP_HEX2, HEX2, PREP_SPACE, SPACE, PREP_P, PREP_L, P, L);
+    TYPE state_type IS (INIT, RESTART, VALID, PRINT_A, PRINT_P, PRINT_L, PRINT_N2, PRINT_N1, PRINT_N0, N2, N1, N0, ECHO, WAIT_CARRIAGE, CARRIAGE_RETURN, WAIT_LINE, LINE_FEED, STARTING, DATAPROC, PREP_HEX1, HEX1, PREP_HEX2, HEX2, PREP_SPACE, SPACE, PREP_P, PREP_L, P, L);
     SIGNAL curState, nextState: state_type; 
     SIGNAL enP, enL, en: std_logic; 
     SIGNAL doneP, doneL, finished: std_logic;
@@ -166,39 +166,69 @@ BEGIN
                 END IF;
             WHEN N2 => -- Wait for next input
                 IF rxnow_reg = '1' THEN
-                    nextState <= ECHO;
+                    nextState <= PRINT_N2;
                 ELSE
                     nextState <= N2;
+                END IF;
+            WHEN PRINT_N2 =>
+                IF finished = '1' THEN
+                    IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN -- If received a digit
+                        nextState <= N1;
+                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
+                        nextState <= N2;
+                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
+                        nextState <= P;
+                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
+                        nextState <= L;
+                    ELSE 
+                        nextState <= INIT;
+                    END IF;
+                ELSE 
+                    nextState <= PRINT_N2;
                 END IF;
             WHEN N1 => -- Wait for next input
                 IF rxnow_reg = '1' THEN
-                    nextState <= ECHO;
+                    nextState <= PRINT_N1;
                 ELSE
                     nextState <= N1;
+                END IF;
+            WHEN PRINT_N1 =>
+                IF finished = '1' THEN
+                    IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN -- If received a digit
+                        nextState <= N0;
+                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
+                        nextState <= N1;
+                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
+                        nextState <= P;
+                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
+                        nextState <= L;
+                    ELSE 
+                        nextState <= INIT;
+                    END IF;
+                ELSE 
+                    nextState <= PRINT_N1;
                 END IF;
             WHEN N0 => -- Wait for next input
                 IF rxnow_reg = '1' THEN
-                    nextState <= ECHO;
+                    nextState <= PRINT_N0;
                 ELSE
                     nextState <= N0;
                 END IF;
-            WHEN ECHO => -- Wait for printing and pick route depending on N_reg
-                IF finished = '1' and N_reg = "000" THEN -- Came from N2 and digit
-                    nextState <= N1;
-                ELSIF finished = '1' and N_reg = "001" THEN -- Came from N1 and digit
-                    nextState <= N0;
-                ELSIF finished = '1' and N_reg = "010" THEN -- Came from N0 and digit
-                    nextState <= WAIT_CARRIAGE;
-                ELSIF finished = '1' and N_reg = "011" THEN -- Received another A
-                    nextState <= N2;
-                ELSIF finished = '1' and N_reg = "100" and seq_Available='1' THEN -- Received a P
-                    nextState <= WAIT_CARRIAGE;
-                ELSIF finished = '1' and N_reg = "101" and seq_Available='1' THEN -- Recvieved an L
-                    nextState <= WAIT_CARRIAGE;
-                ELSIF finished = '0' THEN
-                    nextState <= ECHO;
+            WHEN PRINT_N0 =>
+                IF finished = '1' THEN
+                    IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN -- If received a digit
+                        nextState <= STARTING;
+                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
+                        nextState <= N2;
+                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
+                        nextState <= P;
+                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
+                        nextState <= L;
+                    ELSE 
+                        nextState <= INIT;
+                    END IF;
                 ELSE 
-                    nextState <= INIT;
+                    nextState <= PRINT_N0;
                 END IF;
             ---------------------------------------------------------------------------------
             -- Carriage Return and Line Feed
@@ -372,87 +402,36 @@ BEGIN
             WHEN N2 => -- Prep to echo input, fill N_reg depending on input, if digit input fill NNN
                 IF rxnow_reg = '1' THEN 
                     dataIn <= rxData_reg;
-                    rxDone <= '1';
                     en <= '1';
                     IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN -- If received a digit
-                        N <= "000"; -- Move into N1
-                        en_N_reg <= '1';
                         NNN_val <= rxData_reg(3 downto 0); -- Store first digit in NNN
                         en_NNN_2 <= '1';
-                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
-                        N <= "011";
-                        en_N_reg <= '1';
-                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
-                        N <= "100";
-                        en_N_reg <= '1';
-                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
-                        N <= "101";
-                        en_N_reg <= '1';
-                    ELSE 
-                        N <= "111";
-                        en_N_reg <= '1';
                     END IF;
                 END IF;
             WHEN N1 => -- Prep to echo input, fill N_reg depending on input, if digit input fill NNN
                 IF rxnow_reg = '1' THEN 
                     dataIn <= rxData_reg;
-                    rxDone <= '1';
                     en <= '1';
                     IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN -- If received a digit
-                        N <= "001"; -- Move into N0
-                        en_N_reg <= '1';
                         NNN_val <= rxData_reg(3 downto 0); -- Store second digit in NNN
                         en_NNN_1 <= '1';
-                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
-                        N <= "011";
-                        en_N_reg <= '1';
-                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
-                        N <= "100";
-                        en_N_reg <= '1';
-                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
-                        N <= "101";
-                        en_N_reg <= '1';
-                    ELSE 
-                        N <= "111";
-                        en_N_reg <= '1';
                     END IF;
                 END IF;
             WHEN N0 => -- Prep to echo input, fill N_reg depending on input, if digit input fill NNN
                 IF rxnow_reg = '1' THEN 
                     dataIn <= rxData_reg;
-                    rxDone <= '1';
                     en <= '1';
                     IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN -- If received a digit
-                        N <= "010"; -- Move into N1
-                        en_N_reg <= '1';
                         NNN_val <= rxData_reg(3 downto 0); -- Store first digit in NNN
                         en_NNN_0 <= '1';
-                    ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
-                        N <= "011";
-                        en_N_reg <= '1';
-                    ELSIF rxData_reg = "01010000" OR rxData_reg = "01110000" THEN -- If received a P
-                        N <= "100";
-                        en_N_reg <= '1';
-                    ELSIF rxData_reg = "01001100" OR rxData_reg = "01101100" THEN -- If received an L
-                        N <= "101";
-                        en_N_reg <= '1';
-                    ELSE 
-                        N <= "111";
-                        en_N_reg <= '1';
                     END IF;
                 END IF;
-            WHEN ECHO => -- Wait for printing and pick route depending on N_reg
-                IF finished = '1' and N_reg = "100" and seq_Available='1' THEN -- Received a P
-                    route <= "00";
-                    en_route_reg <= '1';
-                    direction <= '0';
-                    en_direction_reg <= '1';
-                ELSIF finished = '1' and N_reg = "101" and seq_Available='1' THEN -- Received an L
-                    route <= "01";
-                    en_route_reg <= '1';
-                    direction <= '0';
-                    en_direction_reg <= '1';
-                END IF;
+            WHEN PRINT_N2 =>
+                rxDone <= '1';
+            WHEN PRINT_N1 =>
+                rxDone <= '1';
+            WHEN PRINT_N0 =>
+                rxDone <= '1';
             ---------------------------------------------------------------------------------
             -- Carriage Return and Line Feed
             ---------------------------------------------------------------------------------
@@ -466,10 +445,8 @@ BEGIN
             -- Data Processor communication and bytes printed
             ---------------------------------------------------------------------------------
             WHEN STARTING => -- Set start and numWords
-                IF N_reg = "010" THEN
-                    start <= '1'; 
-                    numWords_bcd <= NNN;
-                END IF;
+                start <= '1'; 
+                numWords_bcd <= NNN;
             WHEN DATAPROC => -- Store byte once received
                 IF dataReady_reg='1' THEN
                     en_storedByte <= '1';
