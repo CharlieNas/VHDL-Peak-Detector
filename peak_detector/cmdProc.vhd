@@ -127,7 +127,7 @@ BEGIN
     ---------------------------
     -- Combinatorial Inputs
     ---------------------------
-    combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneL, doneP, finished, dataReady_reg)
+    combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneL, doneP, finished, dataReady_reg, N_reg, direction_reg, route_reg)
     BEGIN
         CASE curState IS
             ---------------------------------------------------------------------------------
