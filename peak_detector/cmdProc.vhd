@@ -6,105 +6,105 @@ library UNISIM;
 use UNISIM.VCOMPONENTS.ALL;
 -- use UNISIM.VPKG.ALL;
 
-entity cmdProc is
-    port (
-      clk:		in std_logic;                                    --i
-      reset:		in std_logic;                                --i
-      rxnow:		in std_logic;                                --i
-      rxData:			in std_logic_vector (7 downto 0);        --i
-      txData:			out std_logic_vector (7 downto 0);       --o
-      rxdone:		out std_logic;                               --o
-      ovErr:		in std_logic;                                --i
-      framErr:	in std_logic;                                    --i
-      txnow:		out std_logic;                               --o
-      txdone:		in std_logic;                                --i
-      start: out std_logic;                                      --o
-      numWords_bcd: out BCD_ARRAY_TYPE(2 downto 0);              --o
-      dataReady: in std_logic;                                   --i
-      byte: in std_logic_vector(7 downto 0);                     --i
-      maxIndex: in BCD_ARRAY_TYPE(2 downto 0);                   --i
-      dataResults: in CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);   --i
-      seqDone: in std_logic                                      --i
+ENTITY cmdProc IS
+    PORT (
+      clk:		IN std_logic;                                    --i
+      reset:		IN std_logic;                                --i
+      rxnow:		IN std_logic;                                --i
+      rxData:			IN std_logic_vector (7 DOWNTO 0);        --i
+      txData:			OUT std_logic_vector (7 DOWNTO 0);       --o
+      rxdone:		OUT std_logic;                               --o
+      ovErr:		IN std_logic;                                --i
+      framErr:	IN std_logic;                                    --i
+      txnow:		OUT std_logic;                               --o
+      txdone:		IN std_logic;                                --i
+      start: OUT std_logic;                                      --o
+      numWords_bcd: OUT BCD_ARRAY_TYPE(2 DOWNTO 0);              --o
+      dataReady: IN std_logic;                                   --i
+      byte: IN std_logic_vector(7 DOWNTO 0);                     --i
+      maxIndex: IN BCD_ARRAY_TYPE(2 DOWNTO 0);                   --i
+      dataResults: IN CHAR_ARRAY_TYPE(0 to_integer(sig) RESULT_BYTE_NUM-1);   --i
+      seqDone: IN std_logic                                      --i
     );
 end cmdProc;
 
-architecture arch of cmdProc is
-    type state_type is (INIT, RESTART, VALID, PRINT_A, PRINT_P, PRINT_L, N2, N1, N0, ECHO, WAIT_CARRIAGE, CARRIAGE_RETURN, WAIT_LINE, LINE_FEED, STARTING, DATAPROC, PREP_HEX1, HEX1, PREP_HEX2, HEX2, PREP_SPACE, SPACE, PREP_P, PREP_L, P, L);
-    signal curState, nextState: state_type; 
-    signal enP, enL, en: std_logic; 
-    signal doneP, doneL, finished: std_logic;
-    signal seq_Available: std_logic;
+ARCHITECTURE arch OF cmdProc IS
+    TYPE state_type IS (INIT, RESTART, VALID, PRINT_A, PRINT_P, PRINT_L, N2, N1, N0, ECHO, WAIT_CARRIAGE, CARRIAGE_RETURN, WAIT_LINE, LINE_FEED, STARTING, DATAPROC, PREP_HEX1, HEX1, PREP_HEX2, HEX2, PREP_SPACE, SPACE, PREP_P, PREP_L, P, L);
+    SIGNAL curState, nextState: state_type; 
+    SIGNAL enP, enL, en: std_logic; 
+    SIGNAL doneP, doneL, finished: std_logic;
+    SIGNAL seq_Available: std_logic;
     -- Registered INPUTS
-    signal rxNow_reg, txDone_reg, dataReady_reg, seqDone_reg: std_logic;
-    signal rxData_reg, byte_reg, dataIn: std_logic_vector (7 downto 0);
-    signal maxIndex_reg: BCD_ARRAY_TYPE(2 downto 0);  
-    signal dataResults_reg: CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);
-    signal maxIndex_stored: BCD_ARRAY_TYPE(2 downto 0);  
-    signal dataResults_stored: CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1);
+    SIGNAL rxNow_reg, txDone_reg, dataReady_reg, seqDone_reg: std_logic;
+    SIGNAL rxData_reg, byte_reg, dataIn: std_logic_vector (7 DOWNTO 0);
+    SIGNAL maxIndex_reg: BCD_ARRAY_TYPE(2 DOWNTO 0);  
+    SIGNAL dataResults_reg: CHAR_ARRAY_TYPE(0 TO RESULT_BYTE_NUM-1);
+    SIGNAL maxIndex_stored: BCD_ARRAY_TYPE(2 DOWNTO 0);  
+    SIGNAL dataResults_stored: CHAR_ARRAY_TYPE(0 TO RESULT_BYTE_NUM-1);
     -- Pathway registers
-    signal direction_reg: std_logic; -- Going into or out of P/L
-    signal route_reg: std_logic_vector (1 downto 0); -- Going into A/P/L
-    signal N_reg: std_logic_vector (2 downto 0); -- CAme from A, N2, N1 or N0
+    SIGNAL direction_reg: std_logic; -- Going into or out of P/L
+    SIGNAL route_reg: std_logic_vector (1 DOWNTO 0); -- Going into A/P/L
+    SIGNAL N_reg: std_logic_vector (2 DOWNTO 0); -- CAme from A, N2, N1 or N0
     SIGNAL NNN: BCD_ARRAY_TYPE(2 DOWNTO 0);
     SIGNAL storedByte: UNSIGNED(7 DOWNTO 0);
     --signals for main:
-    signal txnow_M: std_logic;
-    signal txdata_M: std_logic_vector(7 downto 0);
+    SIGNAL txnow_M: std_logic;
+    SIGNAL txdata_M: std_logic_vector(7 DOWNTO 0);
     --signals for P
-    signal txdata_P: std_logic_vector(7 downto 0);
-    signal txnow_P: std_logic;
+    SIGNAL txdata_P: std_logic_vector(7 DOWNTO 0);
+    SIGNAL txnow_P: std_logic;
     --signals for L
-    signal txdata_L: std_logic_vector(7 downto 0);
-    signal txnow_L: std_logic; 
+    SIGNAL txdata_L: std_logic_vector(7 DOWNTO 0);
+    SIGNAL txnow_L: std_logic; 
 
     ---------------------------
     -- Component Definitions
     ---------------------------
-    COMPONENT printer is
-        port (
-          clk:		    in std_logic;                               --i
-          reset:		in std_logic;                               --i
-          en:           in std_logic;                               --i
-          dataIn:       in std_logic_vector (7 downto 0);           --i
-          txDone:		in std_logic;                               --i
-          txData:	    out std_logic_vector (7 downto 0);          --o
-          txnow:		out std_logic;                              --o
-          finished:     out std_logic                               --o
+    COMPONENT printer IS
+        PORT (
+          clk:		    IN std_logic;                               --i
+          reset:		IN std_logic;                               --i
+          en:           IN std_logic;                               --i
+          dataIn:       IN std_logic_vector (7 DOWNTO 0);           --i
+          txDone:		IN std_logic;                               --i
+          txData:	    OUT std_logic_vector (7 DOWNTO 0);          --o
+          txnow:		OUT std_logic;                              --o
+          finished:     OUT std_logic                               --o
         );
     END COMPONENT printer;
 
     COMPONENT cmdP IS
         PORT (
-            clk:		in std_logic;                               --i
-            reset:		in std_logic;                               --i
-            en:         in std_logic;                               --i
-            peakByte:   in std_logic_vector (7 downto 0);           --i
-            maxIndex:   in BCD_ARRAY_TYPE(2 downto 0);              --i
-            txdone:		in std_logic;                               --i
-            txData:	    out std_logic_vector (7 downto 0);          --o
-            txnow:		out std_logic;                              --o
-            doneP:      out std_logic                               --o
+            clk:		IN std_logic;                               --i
+            reset:		IN std_logic;                               --i
+            en:         IN std_logic;                               --i
+            peakByte:   IN std_logic_vector (7 DOWNTO 0);           --i
+            maxIndex:   IN BCD_ARRAY_TYPE(2 DOWNTO 0);              --i
+            txdone:		IN std_logic;                               --i
+            txData:	    OUT std_logic_vector (7 DOWNTO 0);          --o
+            txnow:		OUT std_logic;                              --o
+            doneP:      OUT std_logic                               --o
         );
     END COMPONENT cmdP;
 
     COMPONENT cmdL IS
         PORT (  
-          clk:		    in std_logic;                               --i
-          reset:		in std_logic;                               --i  
-          enL:          in std_logic;                               --i
-          dataResults:  in CHAR_ARRAY_TYPE(0 to RESULT_BYTE_NUM-1); --i                       
-          txdone:		in std_logic;                               --i
-          txData:	    out std_logic_vector (7 downto 0);          --o
-          txnow:		out std_logic;                              --o    
-          doneL:        out std_logic                               --o
+          clk:		    IN std_logic;                               --i
+          reset:		IN std_logic;                               --i  
+          enL:          IN std_logic;                               --i
+          dataResults:  IN CHAR_ARRAY_TYPE(0 TO RESULT_BYTE_NUM-1); --i                       
+          txdone:		IN std_logic;                               --i
+          txData:	    OUT std_logic_vector (7 DOWNTO 0);          --o
+          txnow:		OUT std_logic;                              --o    
+          doneL:        OUT std_logic                               --o
         );
     END COMPONENT cmdL;
 
 
 BEGIN
-    print:     printer port map (clk, reset, en, dataIn, txDone, txData_M, txNow_M, finished);
-    command_P: cmdP port map (clk, reset, enP, dataResults_stored(3), maxIndex_stored, txdone_reg, txData_P, txNow_P, doneP);
-    command_L: cmdL port map (clk, reset, enL, dataResults_stored, txdone, txData_L, txNow_L, doneL);
+    print:     printer PORT MAP (clk, reset, en, dataIn, txDone, txData_M, txNow_M, finished);
+    command_P: cmdP PORT MAP (clk, reset, enP, dataResults_stored(3), maxIndex_stored, txdone_reg, txData_P, txNow_P, doneP);
+    command_L: cmdL PORT MAP (clk, reset, enL, dataResults_stored, txdone, txData_L, txNow_L, doneL);
     
     ---------------------------
     --  Multiple driver control
@@ -129,7 +129,7 @@ BEGIN
     ---------------------------
     combi_nextState: PROCESS(curState, rxnow_reg, rxData_reg, seq_Available, doneL, doneP, finished, dataReady_reg)
     BEGIN
-        CASE curState is
+        CASE curState IS
             ---------------------------------------------------------------------------------
             -- Central FSM
             ---------------------------------------------------------------------------------
@@ -301,7 +301,7 @@ BEGIN
         en <= '0';
         rxDone <= '0';
         start <= '0';
-        CASE curState is
+        CASE curState IS
             ---------------------------------------------------------------------------------
             -- Central FSM
             ---------------------------------------------------------------------------------
