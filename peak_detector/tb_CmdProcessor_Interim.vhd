@@ -293,15 +293,15 @@ begin
   ------------------------------
     -- issue P cmd p
   -----------------------------
-    -- P: 1, 01110000, 1 (idle - 1, start bit - 0, p (0111_0000) in order of LSB first, stop bit -1)
-    '1' after 52000 us, '0' after 52001 us, '0' after 52105 us, '0' after 52209 us,  '0' after 52313 us,  '0' after 52417 us,  
-    '1' after 52521 us,  '1' after 52625 us,  '1' after 52729 us,  '0' after 52833 us, '1' after 52937 us,
+    -- -- P: 1, 01110000, 1 (idle - 1, start bit - 0, p (0111_0000) in order of LSB first, stop bit -1)
+    -- '1' after 52000 us, '0' after 52001 us, '0' after 52105 us, '0' after 52209 us,  '0' after 52313 us,  '0' after 52417 us,  
+    -- '1' after 52521 us,  '1' after 52625 us,  '1' after 52729 us,  '0' after 52833 us, '1' after 52937 us,
     ------------------------------
     -- issue L cmd l
   -----------------------------
     -- L: 1, 01001100, 1 (idle - 1, start bit - 0, p (0100_1100) in order of LSB first, stop bit -1)
-    '1' after 122000 us, '0' after 122001 us, '0' after 122105 us, '0' after 122209 us,  '1' after 122313 us,  '1' after 122417 us,  
-    '0' after 122521 us,  '0' after 122625 us,  '1' after 122729 us,  '0' after 122833 us, '1' after 122937 us;
+    '1' after 52000 us, '0' after 52001 us, '0' after 52105 us, '0' after 52209 us,  '1' after 52313 us,  '1' after 52417 us,  
+    '0' after 52521 us,  '0' after 52625 us,  '1' after 52729 us,  '0' after 52833 us, '1' after 52937 us;
  
 
 

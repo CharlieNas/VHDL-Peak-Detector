@@ -20,13 +20,12 @@ ENTITY cmdL IS
 END cmdL;
 
 ARCHITECTURE arch OF cmdL IS
-    TYPE state_type IS (IDLE, CHAR1, CHAR2, CHECK, SPACE);
+    TYPE state_type IS (IDLE, CHAR1, CHAR2, CHECK, SPACE, PREP_CHAR1, PREP_CHAR2, PREP_SPACE, WAIT_CARRIAGE, CARRIAGE_RETURN, WAIT_LINE, LINE_FEED);
     SIGNAL curState, nextState: state_type; 
     SIGNAL dataIn: std_logic_vector (7 DOWNTO 0);
     SIGNAL finished: std_logic;
-    SIGNAL en: std_logic;
-    SIGNAL i: natural := 0;
-    
+    SIGNAL en, en_count: std_logic;
+    SIGNAL counter: natural;
     -----------------------------------------------------
     COMPONENT printer IS
         PORT(
@@ -63,21 +62,41 @@ ARCHITECTURE arch OF cmdL IS
 BEGIN
     p1: printer PORT MAP(en, dataIn, clk, reset, txdone, txData, txnow, finished);
     -----------------------------------------------------
-    combi_nextState: PROCESS(curState, enL, finished, i)
+    combi_nextState: PROCESS(curState, enL, finished, counter)
     BEGIN
         CASE curState IS
             WHEN IDLE =>
                 IF enL = '1' THEN 
-                    nextState <= CHAR1;
+                    nextState <= WAIT_CARRIAGE;
                 ELSE 
                     nextState <= IDLE;
                 END IF;
+            WHEN WAIT_CARRIAGE => -- Prep printing for carriage return
+                nextState <= CARRIAGE_RETURN;
+            WHEN CARRIAGE_RETURN => -- Wait for carriage return to print
+                IF finished = '1' THEN
+                    nextState <= WAIT_LINE;
+                ELSE
+                    nextState <= CARRIAGE_RETURN;
+                END IF; 
+            WHEN WAIT_LINE =>
+                nextState <= LINE_FEED;
+            WHEN LINE_FEED =>
+                IF finished = '1' THEN
+                    nextState <= PREP_CHAR1;
+                ELSE 
+                    nextState <= LINE_FEED; 
+                END IF;
+            WHEN PREP_CHAR1 =>
+                nextState <= CHAR1;
             WHEN CHAR1 =>
                 IF finished = '1' THEN 
-                    nextState <= CHAR2;
+                    nextState <= PREP_CHAR2;
                 ELSE 
                     nextState <= CHAR1;
                 END IF;
+            WHEN PREP_CHAR2 =>
+                nextState <= CHAR2;
             WHEN CHAR2 => 
                 IF finished = '1' THEN 
                     nextState <= CHECK;
@@ -85,14 +104,16 @@ BEGIN
                     nextState <= CHAR2;
                 END IF;
             WHEN CHECK =>
-                IF i = 7 THEN 
+                IF counter = 7 THEN 
                     nextState <= IDLE;
                 ELSE 
-                    nextState <= SPACE;
+                    nextState <= PREP_SPACE;
                 END IF;
+            WHEN PREP_SPACE =>
+                nextState <= SPACE;
             WHEN SPACE =>
                 IF finished = '1' THEN 
-                    nextState <= CHAR1;
+                    nextState <= PREP_CHAR1;
                 ELSE 
                     nextState <= SPACE;
                 END IF;
@@ -101,28 +122,40 @@ BEGIN
         END case;
     END process;
     -----------------------------------------------------
-    combi_out: PROCESS(curState, nextState)
-    VARIABLE halfByte : unsigned (7 downto 0) := "00000000";
+    combi_out: PROCESS(curState, counter)
     BEGIN
         doneL <= '0';
         en <= '0';
-        IF curState = CHECK AND i = 7 THEN
-            doneL <= '1';
-        ELSIF curState = CHAR2 AND nextState = CHECK AND finished = '1' THEN
-            i <= i + 1;
-        ELSIF curState = CHAR1 THEN
-            dataIn <= NIB_TO_ASCII(dataResults(i)(7 downto 4));
+        en_count <= '0';
+        IF curState = CHECK AND counter = 7 THEN
+            doneL <= '1'; 
+        ELSIF curState = PREP_CHAR1 THEN
+            dataIn <= NIB_TO_ASCII(dataResults(counter)(7 downto 4));
             en <= '1';
-        ELSIF curState = CHAR2 THEN
-            dataIn <= NIB_TO_ASCII(dataResults(i)(3 downto 0));
+        ELSIF curState = PREP_CHAR2 THEN
+            dataIn <= NIB_TO_ASCII(dataResults(counter)(3 downto 0));
             en <= '1';
-        ELSIF curState = SPACE THEN
+            en_count <= '1';
+        ELSIF curState = PREP_SPACE THEN
             dataIn <= "00100000";
             en <= '1';
-        ELSIF curState = IDLE AND enL <= '1' THEN
-            i <= 0;
+        ELSIF curState =  WAIT_CARRIAGE THEN -- Prep printing for carriage return
+            dataIn <= "00001101";
+            en <= '1';
+        ELSIF curState =  WAIT_LINE THEN -- Prep printing for line feed
+            dataIn <= "00001010";
+            en <= '1';
         END IF;
     END PROCESS; -- combi_output
+  ----------------------------------------------------
+    counting: PROCESS(clk)
+    BEGIN
+        IF clk'EVENT AND clk='1' THEN
+            IF en_count = '1' THEN 
+                counter <= counter + 1;
+            END IF;
+        END IF;
+    END PROCESS;
   -----------------------------------------------------
     seq_state: PROCESS (clk)
     BEGIN

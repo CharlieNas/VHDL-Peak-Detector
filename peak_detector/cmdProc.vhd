@@ -345,7 +345,6 @@ BEGIN
     ---------------------------
     combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg, storedByte)
     BEGIN
-        dataIn <= "00000000";
         en <= '0';
         rxDone <= '0';
         NNN_val <= "0000";
