@@ -93,7 +93,11 @@ BEGIN
             WHEN SPACE =>
                 IF finished = '1' THEN 
                     nextState <= CHAR1;
+                ELSE 
+                    nextState <= SPACE;
                 END IF;
+            WHEN OTHERS =>
+                nextState <= IDLE;         
         END case;
     END process;
     -----------------------------------------------------
@@ -104,7 +108,6 @@ BEGIN
         en <= '0';
         IF curState = CHECK AND i = 7 THEN
             doneL <= '1';
-            dataIn <= "00000000";
         ELSIF curState = CHAR2 AND nextState = CHECK AND finished = '1' THEN
             i <= i + 1;
         ELSIF curState = CHAR1 THEN
