@@ -153,6 +153,8 @@ BEGIN
         IF clk'EVENT AND clk='1' THEN
             IF reset = '1' THEN
                 counter <= 0;
+            ELSIF curState = IDLE THEN
+                counter <= 0;
             ELSIF en_count = '1' THEN 
                 counter <= counter + 1;
             END IF;
