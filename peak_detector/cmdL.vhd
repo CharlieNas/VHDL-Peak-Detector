@@ -140,10 +140,10 @@ BEGIN
         IF curState = CHECK AND counter = 7 THEN
             doneL <= '1'; 
         ELSIF curState = PREP_CHAR1 THEN
-            dataIn <= NIB_TO_ASCII(dataResults(counter)(7 downto 4));
+            dataIn <= NIB_TO_ASCII(dataResults(6 - counter)(7 downto 4));
             en <= '1';
         ELSIF curState = PREP_CHAR2 THEN
-            dataIn <= NIB_TO_ASCII(dataResults(counter)(3 downto 0));
+            dataIn <= NIB_TO_ASCII(dataResults(6 - counter)(3 downto 0));
             en <= '1';
             en_count <= '1';
         ELSIF curState = PREP_SPACE THEN
