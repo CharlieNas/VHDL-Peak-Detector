@@ -30,7 +30,7 @@ architecture Behavioral of dataConsume is
   signal prev_ctrlIn, ctrlOut_state: std_logic := '0';
   signal edge_detected_ctrlIn: std_logic := '0';
 
-  signal en_counter, reset_counter: boolean := TRUE;
+  signal en_count, reset_count: boolean := TRUE;
 
   -- signals to keep of fetched data
   signal numWords_int: integer := 0;
@@ -115,11 +115,11 @@ begin
   ---------------------------
   NextState: process(curr_state, start, edge_detected_ctrlIn)
   begin
+    en_count <= FALSE;
     case curr_state is
       -- Reset and check for start from command processor
       when IDLE => 
-        reset_counter <= TRUE;
-        en_count <= FALSE;
+        reset_count <= TRUE;
         peak_value <= (others => '0');
         peak_index <= 0;
         update_next_values <= 0;
@@ -144,7 +144,7 @@ begin
         if edge_detected_ctrlIn = '1' then
           dataReady <= '0';
           seqDone <= '0';
-          reset_counter <= FALSE;
+          reset_count <= FALSE;
           en_count <= TRUE;
          
           -- 1. Update dataResults with next three values if the peak was recently found.
