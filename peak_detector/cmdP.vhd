@@ -80,7 +80,7 @@ BEGIN
             WHEN WAITING =>
                 IF finished_reg = '1' THEN
                     IF b_index = 8 THEN
-                        nextState <= FINAL;
+                        nextState <= IDLE;
                     ELSE
                         nextState <= PRINTING;
                     END IF;
@@ -109,13 +109,13 @@ BEGIN
             END IF;
         ELSIF curState = PRINTING THEN
             print_en <= '1';
---            dataIn_en <= '1';
-            dataIn <= fullData(TO_INTEGER(b_index));
-            b_index_en <= '1';
-        ELSIF curState = FINAL THEN
-            doneP <= '1';
-            b_index_reset <= '1';
---            dataIn_reset <= '1';
+            dataIn <= fullData(b_index);
+            b_index <= b_index + 1;
+        ELSIF curState = WAITING AND finished_reg = '1' THEN
+            IF b_index = 8 THEN
+                doneP <= '1';
+                b_index <= 0;
+            END IF;
         END IF;
     END PROCESS; -- combi_output
   -----------------------------------------------------
@@ -165,28 +165,17 @@ BEGIN
   -----------------------------------------------------
     format_chars: PROCESS (clk)
     BEGIN
-        IF clk'EVENT AND clk='1' THEN
-            IF reset = '1' OR dataIn_reset = '1' THEN
-                fullData(0) <= "00000000";
-                fullData(1) <= "00000000";
-                fullData(2) <= "00000000";
-                fullData(3) <= "00000000";
-                fullData(4) <= "00000000";
-                fullData(5) <= "00000000";
-                fullData(6) <= "00000000";
-                fullData(7) <= "00000000";
-            ELSIF fullData_en = '1' THEN
-                fullData(0) <= "00001010";                              -- Line Feed (\n): seventh
-                fullData(1) <= "00001101";                              -- Carriage Return (\r): eighth
-                fullData(2) <= NIB_TO_ASCII(peakByte_reg(7 DOWNTO 4));  -- 16^1 char: first
-                fullData(3) <= NIB_TO_ASCII(peakByte_reg(3 DOWNTO 0));  -- 16^0 char: second
-                fullData(4) <= "00100000";                              -- " "  char: third
-                fullData(5) <= NIB_TO_ASCII(maxIndex(2));               -- 10^2 char: fourth
-                fullData(6) <= NIB_TO_ASCII(maxIndex(1));               -- 10^1 char: fitfh
-                fullData(7) <= NIB_TO_ASCII(maxIndex(0));               -- 10^0 char: sixth
-    --            fullData(6) <= "00001010";                              -- Line Feed (\n): seventh
-    --            fullData(7) <= "00001101";                              -- Carriage Return (\r): eighth
-            END IF;
+        IF curState = IDLE AND enP_reg = '1' THEN
+            fullData(0) <= "00001010";                              -- Line Feed (\n): seventh
+            fullData(1) <= "00001101";                              -- Carriage Return (\r): eighth
+            fullData(2) <= NIB_TO_ASCII(peakByte_reg(7 DOWNTO 4));  -- 16^1 char: first
+            fullData(3) <= NIB_TO_ASCII(peakByte_reg(3 DOWNTO 0));  -- 16^0 char: second
+            fullData(4) <= "00100000";                              -- " "  char: third
+            fullData(5) <= NIB_TO_ASCII(maxIndex(2));               -- 10^2 char: fourth
+            fullData(6) <= NIB_TO_ASCII(maxIndex(1));               -- 10^1 char: fitfh
+            fullData(7) <= NIB_TO_ASCII(maxIndex(0));               -- 10^0 char: sixth
+--            fullData(6) <= "00001010";                              -- Line Feed (\n): seventh
+--            fullData(7) <= "00001101";                              -- Carriage Return (\r): eighth
         END IF;
     END PROCESS; 
   -----------------------------------------------------
