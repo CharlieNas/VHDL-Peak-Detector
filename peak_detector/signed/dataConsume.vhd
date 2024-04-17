@@ -22,7 +22,15 @@ end dataConsume;
 
 architecture Behavioral of dataConsume is
   -- Declaring types
-  type state_type is (IDLE, PROCESS_DATA, WAIT_CMDP, CHECK_COMPLETE);
+  type state_type is (
+    IDLE, 
+    FETCH_DATA,
+    UPDATE_NEXT_VALUES, 
+    PEAK_DETECTION, 
+    UPDATE_LAST_THREE_VALUES, 
+    WAIT_CMDP, 
+    CHECK_COMPLETE);
+
   type signed_array is array (integer range <>) of signed(7 downto 0);
 
   -- signals for state machine and two phase control
@@ -212,41 +220,45 @@ begin
   ---------------------------
   -- Determine Next State
   ---------------------------
-  combi_next: process(curr_state, start, edge_detected_ctrlIn)
+  combi_next: process(curr_state, start, edge_detected_ctrlIn, counter)
   begin
     case curr_state is
-      -- Reset and check for start from command processor
       when IDLE => 
         if start = '1' then
-          next_state <= PROCESS_DATA;
+          next_state <= FETCH_DATA;
         else
           next_state <= IDLE;
         end if;
-
-      -- Processing coming bytes finding peak and storing values in DataResults
-      when PROCESS_DATA => 
+  
+      when FETCH_DATA => 
         if edge_detected_ctrlIn = '1' then
-          next_state <= WAIT_CMDP;
+          next_state <= UPDATE_NEXT_VALUES;
         else
-          next_state <= PROCESS_DATA;
+          next_state <= FETCH_DATA;
         end if;
-
-      -- Waiting for start from command processor or first run through  
+  
+      when UPDATE_NEXT_VALUES => 
+        next_state <= PEAK_DETECTION;
+  
+      when PEAK_DETECTION =>
+        next_state <= UPDATE_LAST_THREE_VALUES;
+  
+      when UPDATE_LAST_THREE_VALUES =>
+        next_state <= WAIT_CMDP;
+  
       when WAIT_CMDP =>
         if start = '1' or counter = 1 then
-            next_state <= CHECK_COMPLETE;
+          next_state <= CHECK_COMPLETE;
         else 
             next_state <= WAIT_CMDP;
         end if;
-      
-      -- Check if should do another byte or stop  
+  
       when CHECK_COMPLETE =>
         if counter < numWords_int then
-            next_state <= PROCESS_DATA;
+            next_state <= FETCH_DATA;
         else
           next_state <= IDLE;
-        end if;
-      
+  
       when others =>
         next_state <= IDLE;
     end case;
@@ -272,38 +284,68 @@ begin
         end if;
 
       -- Processing coming bytes finding peak and storing values in DataResults
-      when PROCESS_DATA => 
+      when FETCH_DATA => 
         reset_count <= FALSE;
         en_bcd_to_int <= FALSE;
         en_last_three <= FALSE;
         new_peak_found <= FALSE;
         en_next_values <= FALSE;
         en_decrement_next_values <= FALSE;
+        dataReady <= '0';
+        seqDone <= '0';
+
+        en_count <= TRUE;
+
+      when UPDATE_NEXT_VALUES => 
+        reset_count <= FALSE;
+        en_bcd_to_int <= FALSE;
+        en_last_three <= FALSE;
+        new_peak_found <= FALSE;
+        en_next_values <= FALSE;
+        en_decrement_next_values <= FALSE;
+        en_count <= FALSE;
 
         dataReady <= '0';
         seqDone <= '0';
 
-        if edge_detected_ctrlIn = '1' then
-          dataReady <= '0';
-          seqDone <= '0';
-          en_count <= TRUE;
-
-          if update_next_values > 0 then
-            en_next_values <= TRUE;
-            en_decrement_next_values <= TRUE;
-          else
-            en_next_values <= FALSE;
-            en_decrement_next_values <= FALSE;
-          end if;
-          
-          if counter = 0 or signed(data) > peak_value then
-            new_peak_found <= TRUE;
-          else
-            new_peak_found <= FALSE;
-          end if;
-
-          en_last_three <= TRUE;
+        if update_next_values > 0 then
+          en_next_values <= TRUE;
+          en_decrement_next_values <= TRUE;
+        else
+          en_next_values <= FALSE;
+          en_decrement_next_values <= FALSE;
         end if;
+
+      when PEAK_DETECTION =>
+        reset_count <= FALSE;
+        en_bcd_to_int <= FALSE;
+        en_last_three <= FALSE;
+        new_peak_found <= FALSE;
+        en_next_values <= FALSE;
+        en_decrement_next_values <= FALSE;
+        en_count <= FALSE;
+
+        dataReady <= '0';
+        seqDone <= '0';
+
+        if counter = 0 or signed(data) > peak_value then
+          new_peak_found <= TRUE;
+        else
+          new_peak_found <= FALSE;
+        end if;
+
+      when UPDATE_LAST_THREE_VALUES =>
+        reset_count <= FALSE;
+        en_bcd_to_int <= FALSE;
+        new_peak_found <= FALSE;
+        en_next_values <= FALSE;
+        en_decrement_next_values <= FALSE;
+        en_count <= FALSE;
+
+        dataReady <= '0';
+        seqDone <= '0';
+
+        en_last_three <= TRUE;
       
       -- Check if should do another byte or stop  
       when CHECK_COMPLETE =>
@@ -313,6 +355,7 @@ begin
         new_peak_found <= FALSE;
         en_next_values <= FALSE;
         en_decrement_next_values <= FALSE;
+        en_count <= FALSE;
 
         dataReady <= '1';
         seqDone <= '0';
