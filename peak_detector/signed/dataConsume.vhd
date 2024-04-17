@@ -30,6 +30,8 @@ architecture Behavioral of dataConsume is
   signal prev_ctrlIn, ctrlOut_state: std_logic := '0';
   signal edge_detected_ctrlIn: std_logic := '0';
 
+  signal en_counter, reset_counter: boolean := TRUE;
+
   -- signals to keep of fetched data
   signal numWords_int: integer := 0;
   signal counter: integer := 0;
@@ -83,6 +85,17 @@ begin
     end if;
   end process;
 
+  UpdateCounter: process(clk)
+  begin
+   if rising_edge(clk) then
+      if reset_count = TRUE then
+        counter <= 0;
+      elsif en_count = TRUE then
+        counter <= counter + 1;
+      end if;
+    end if;
+  end process; 
+
   --------------------------------
   --  State Machine Transitions
   --------------------------------
@@ -105,7 +118,8 @@ begin
     case curr_state is
       -- Reset and check for start from command processor
       when IDLE => 
-        counter <= 0;
+        reset_counter <= TRUE;
+        en_count <= FALSE;
         peak_value <= (others => '0');
         peak_index <= 0;
         update_next_values <= 0;
@@ -130,7 +144,8 @@ begin
         if edge_detected_ctrlIn = '1' then
           dataReady <= '0';
           seqDone <= '0';
-          counter <= counter + 1;
+          reset_counter <= FALSE;
+          en_count <= TRUE;
          
           -- 1. Update dataResults with next three values if the peak was recently found.
           --    We use update_next_values to keep track of how many values we have stored after the peak
