@@ -339,12 +339,37 @@ BEGIN
                 nextState <= INIT;
         END CASE;
     END PROCESS;
+
+
+    
+    store_NNN: PROCESS(clk)
+    BEGIN
+        IF clk'EVENT AND clk='1' THEN
+          IF en_NNN_2='1' THEN
+            NNN(2) <= NNN_val;
+          ELSIF en_NNN_1='1' THEN
+            NNN(1) <= NNN_val;
+          ELSIF en_NNN_0='1' THEN
+            NNN(0) <= NNN_val;
+          END IF;
+        END IF;
+    END PROCESS;
+    
+    store_byte: PROCESS(clk)
+    BEGIN
+        IF clk'EVENT AND clk='1' THEN
+          IF en_storedByte='1' THEN
+            storedByte <= UNSIGNED(byte_reg);
+          END IF;
+        END IF;
+    END PROCESS;
     
     ---------------------------
     -- Combinatorial Outputs
     ---------------------------
     combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg, storedByte)
     BEGIN
+        dataIn <= "00000000";
         en <= '0';
         rxDone <= '0';
         NNN_val <= "0000";
@@ -486,31 +511,6 @@ BEGIN
         END IF;
     END PROCESS; 
 
-    ----------------------------------
-    -- Registering NNN and stored Byte
-    ----------------------------------
-
-    store_NNN: PROCESS(clk)
-    BEGIN
-        IF clk'EVENT AND clk='1' THEN
-          IF en_NNN_2='1' THEN
-            NNN(2) <= NNN_val;
-          ELSIF en_NNN_1='1' THEN
-            NNN(1) <= NNN_val;
-          ELSIF en_NNN_0='1' THEN
-            NNN(0) <= NNN_val;
-          END IF;
-        END IF;
-    END PROCESS;
-    
-    store_byte: PROCESS(clk)
-    BEGIN
-        IF clk'EVENT AND clk='1' THEN
-          IF en_storedByte='1' THEN
-            storedByte <= UNSIGNED(byte_reg);
-          END IF;
-        END IF;
-    END PROCESS;
 
     ---------------------------
     -- Input registering
