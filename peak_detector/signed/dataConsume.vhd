@@ -100,6 +100,9 @@ begin
         update_next_values <= 0;
       elsif en_decrement_next_values = TRUE then
         update_next_values <= update_next_values - 1;
+      elsif new_peak_found = TRUE then 
+        update_next_values <= 3;
+      end if;
     end if;
   end process;
 
@@ -160,7 +163,7 @@ begin
       if reset = '1' then
         lastThreeBytes <= (others => (others => '0'));
       elsif en_last_three = TRUE then
-        -- Actualizar el registro de los últimos tres bytes con el nuevo byte recibido.
+        -- Actualizar el registro de los Ãºltimos tres bytes con el nuevo byte recibido.
         lastThreeBytes(2) <= lastThreeBytes(1);
         lastThreeBytes(1) <= lastThreeBytes(0);
         lastThreeBytes(0) <= signed(data);
