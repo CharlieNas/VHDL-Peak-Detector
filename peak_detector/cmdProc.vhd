@@ -515,7 +515,7 @@ BEGIN
         END IF;
     END PROCESS;
     
-    seq_starting : PROCESS(clk)
+    seq_numWords: PROCESS(clk)
     BEGIN
         IF clk'EVENT AND clk='1' THEN
             IF en_numWords = '1' THEN
