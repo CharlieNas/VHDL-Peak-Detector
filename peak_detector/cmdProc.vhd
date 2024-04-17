@@ -287,7 +287,9 @@ BEGIN
                 ELSE
                     nextState <= SPACE;
                 END IF;
-
+            ---------------------------------------------------------------------------------
+            -- Carriage Return and Line Feed
+            ---------------------------------------------------------------------------------
             WHEN WAIT_CARRIAGE2 => -- Prep printing for carriage return
                 nextState <= CARRIAGE_RETURN2;
             WHEN CARRIAGE_RETURN2 => -- Wait for carriage return to print
@@ -339,47 +341,23 @@ BEGIN
                 nextState <= INIT;
         END CASE;
     END PROCESS;
-
-
-    
-    store_NNN: PROCESS(clk)
-    BEGIN
-        IF clk'EVENT AND clk='1' THEN
-          IF en_NNN_2='1' THEN
-            NNN(2) <= NNN_val;
-          ELSIF en_NNN_1='1' THEN
-            NNN(1) <= NNN_val;
-          ELSIF en_NNN_0='1' THEN
-            NNN(0) <= NNN_val;
-          END IF;
-        END IF;
-    END PROCESS;
-    
-    store_byte: PROCESS(clk)
-    BEGIN
-        IF clk'EVENT AND clk='1' THEN
-          IF en_storedByte='1' THEN
-            storedByte <= UNSIGNED(byte_reg);
-          END IF;
-        END IF;
-    END PROCESS;
     
     ---------------------------
     -- Combinatorial Outputs
     ---------------------------
     combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg, storedByte)
     BEGIN
-        dataIn <= "00000000";
         en <= '0';
-        rxDone <= '0';
-        NNN_val <= "0000";
-        en_NNN_2 <= '0';
-        en_NNN_1 <= '0';
-        en_NNN_0 <= '0';
-        start <= '0';
         en_storedByte <= '0';
         enP <= '0';
         enL <= '0';
+        en_NNN_2 <= '0';
+        en_NNN_1 <= '0';
+        en_NNN_0 <= '0';
+        rxDone <= '0';
+        NNN_val <= "0000";
+        start <= '0';
+        dataIn <= "00000000";
         CASE curState IS
             ---------------------------------------------------------------------------------
             -- Central FSM
@@ -446,7 +424,7 @@ BEGIN
                 start <= '1'; 
                 numWords_bcd <= NNN;
             WHEN DATAPROC => -- Store byte once received
-                IF dataReady_reg='1' THEN
+                IF dataReady_reg = '1' THEN
                     en_storedByte <= '1';
                 END IF;
             WHEN PREP_HEX1 => -- Prep printing for first Hex Digit
@@ -495,7 +473,7 @@ BEGIN
         END IF;
     END PROCESS; 
 
-     ---------------------------
+    ---------------------------
     -- Data Results and Max Index Managing
     ---------------------------
     data: PROCESS (clk)
@@ -510,6 +488,31 @@ BEGIN
             END IF;
         END IF;
     END PROCESS; 
+
+    ---------------------------
+    -- Sequential storage logic for NNN/ store_Byte
+    ---------------------------
+    store_NNN: PROCESS(clk)
+    BEGIN
+        IF clk'EVENT AND clk='1' THEN
+          IF en_NNN_2='1' THEN
+            NNN(2) <= NNN_val;
+          ELSIF en_NNN_1='1' THEN
+            NNN(1) <= NNN_val;
+          ELSIF en_NNN_0='1' THEN
+            NNN(0) <= NNN_val;
+          END IF;
+        END IF;
+    END PROCESS;
+    
+    store_byte: PROCESS(clk)
+    BEGIN
+        IF clk'EVENT AND clk='1' THEN
+          IF en_storedByte='1' THEN
+            storedByte <= UNSIGNED(byte_reg);
+          END IF;
+        END IF;
+    END PROCESS;
 
 
     ---------------------------

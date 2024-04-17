@@ -28,12 +28,16 @@ ARCHITECTURE arch OF cmdP IS
     SIGNAL fullData: ASCII_SEQUENCE;
     
     SIGNAL enP_reg, print_en, finished: STD_LOGIC;
-    SIGNAL b_index_en, dataIn_en, b_index_reset, fulldata_en, dataIn_reset : STD_LOGIC;
+    SIGNAL b_index_en, b_index_reset, fulldata_en: STD_LOGIC;
     SIGNAL b_index: UNSIGNED(3 DOWNTO 0) := "0000"; --byte index
     SIGNAL peakByte_reg : STD_LOGIC_VECTOR (7 DOWNTO 0);
     SIGNAL maxIndex_reg: BCD_ARRAY_TYPE(2 DOWNTO 0);
     SIGNAL dataIn : STD_LOGIC_VECTOR (7 DOWNTO 0);
     SIGNAL finished_reg: STD_LOGIC;
+
+    ---------------------------
+    -- Component Definitions
+    ---------------------------
     COMPONENT printer IS
         PORT(
             en, clk, reset, txdone : IN std_logic;
@@ -43,8 +47,10 @@ ARCHITECTURE arch OF cmdP IS
             );
     END COMPONENT;
     
-    -- NIB_TO_ASCII: Converts a 4-bit nibble representation of a hex digit to its 8-bit ASCII equivalent.
-    FUNCTION NIB_TO_ASCII (
+    ---------------------------
+    -- Function to convert nibble to ASCII
+    ---------------------------
+    FUNCTION NIB_TO_ASCII ( -- NIB_TO_ASCII: Converts a 4-bit nibble representation of a hex digit to its 8-bit ASCII equivalent.
         v_in: IN STD_LOGIC_VECTOR(3 DOWNTO 0))
         RETURN STD_LOGIC_VECTOR IS
         VARIABLE v_temp: UNSIGNED(7 DOWNTO 0);
@@ -61,11 +67,11 @@ ARCHITECTURE arch OF cmdP IS
     END NIB_TO_ASCII;
     
 BEGIN
-     -----------------------------------------------------
-
     pr: printer PORT MAP (print_en, clk, reset, txdone, dataIn, txData, txnow, finished);
     
-    -----------------------------------------------------
+    ---------------------------
+    -- Combinatorial Inputs
+    ---------------------------
     combi_nextState: PROCESS(curState, enP_reg, finished_reg)
     BEGIN
         CASE curState IS
@@ -93,33 +99,36 @@ BEGIN
                 nextState <= IDLE;
         END CASE;
     END PROCESS;
-    -----------------------------------------------------
+
+    ---------------------------
+    -- Combinatorial Outputs
+    ---------------------------
     combi_out: PROCESS(curState, finished_reg)
     BEGIN
         doneP <= '0';
         print_en <= '0';
         b_index_en <= '0';
         b_index_reset <= '0';
-        dataIn_en <= '0';
         fullData_en <= '0';
-        dataIn_reset <= '0';
+        dataIn <= "00000000";
         IF curState = IDLE THEN
             IF enP_reg <= '1' THEN
                 fullData_en <= '1';
             END IF;
         ELSIF curState = PRINTING THEN
             print_en <= '1';
---            dataIn_en <= '1';
-            dataIn <= fullData(TO_INTEGER(b_index));
             b_index_en <= '1';
+            dataIn <= fullData(TO_INTEGER(b_index));
         ELSIF curState = FINAL THEN
             doneP <= '1';
             b_index_reset <= '1';
---            dataIn_reset <= '1';
         END IF;
     END PROCESS; -- combi_output
-  -----------------------------------------------------
-    combi_in: PROCESS(clk)
+    
+    ---------------------------
+    -- Input registering
+    ---------------------------
+    seq_input: PROCESS(clk)
     BEGIN
 	    IF clk'event AND clk='1' THEN
 	           enP_reg <= en;
@@ -128,18 +137,10 @@ BEGIN
 	           finished_reg <= finished;
 	    END IF;
 	  END PROCESS;
-  -----------------------------------------------------
-    seq_state: PROCESS (clk)
-    BEGIN
-        IF clk'EVENT AND clk='1' THEN
-            IF reset = '1' THEN
-                curState <= IDLE;
-            ELSE
-                curState <= nextState;
-            END IF;
-        END IF;
-    END PROCESS; 
-  -----------------------------------------------------
+    
+    ---------------------------
+    -- Counter for b_index
+    ---------------------------
     b_index_counter: PROCESS(reset,clk)
     BEGIN
 		IF clk'EVENT and clk='1' THEN
@@ -151,22 +152,13 @@ BEGIN
 		END IF;
     END PROCESS;
     
-  -----------------------------------------------------
---    reg_dataIn: PROCESS(reset,clk)
---    BEGIN
---		IF clk'EVENT and clk='1' THEN
---            IF reset = '1' or dataIn_reset = '1' THEN -- active high reset
---                dataIn <= "00000000";
---		    ELSIF dataIn_en = '1' THEN -- enable
---		        dataIn <= fullData(TO_INTEGER(b_index));
---		    END IF;
---		END IF;
---    END PROCESS;
-  -----------------------------------------------------
+    ---------------------------
+    -- Full data sequential management
+    ---------------------------
     format_chars: PROCESS (clk)
     BEGIN
         IF clk'EVENT AND clk='1' THEN
-            IF reset = '1' OR dataIn_reset = '1' THEN
+            IF reset = '1' THEN
                 fullData(0) <= "00000000";
                 fullData(1) <= "00000000";
                 fullData(2) <= "00000000";
@@ -184,10 +176,21 @@ BEGIN
                 fullData(5) <= NIB_TO_ASCII(maxIndex(2));               -- 10^2 char: fourth
                 fullData(6) <= NIB_TO_ASCII(maxIndex(1));               -- 10^1 char: fitfh
                 fullData(7) <= NIB_TO_ASCII(maxIndex(0));               -- 10^0 char: sixth
-    --            fullData(6) <= "00001010";                              -- Line Feed (\n): seventh
-    --            fullData(7) <= "00001101";                              -- Carriage Return (\r): eighth
             END IF;
         END IF;
     END PROCESS; 
-  -----------------------------------------------------
+    
+    ---------------------------
+    -- Sequential state updating
+    ---------------------------
+    seq_state: PROCESS (clk)
+    BEGIN
+        IF clk'EVENT AND clk='1' THEN
+            IF reset = '1' THEN
+                curState <= IDLE;
+            ELSE
+                curState <= nextState;
+            END IF;
+        END IF;
+    END PROCESS; 
 END arch;

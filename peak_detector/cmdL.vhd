@@ -26,7 +26,10 @@ ARCHITECTURE arch OF cmdL IS
     SIGNAL finished: std_logic;
     SIGNAL en, en_count: std_logic;
     SIGNAL counter: natural;
-    -----------------------------------------------------
+    
+    ---------------------------
+    -- Component Definitions
+    ---------------------------
     COMPONENT printer IS
         PORT(
             en:           IN std_logic;                           
@@ -40,9 +43,10 @@ ARCHITECTURE arch OF cmdL IS
         );
     END COMPONENT;
 
-    -----------------------------------------------------
-    -- NIB_TO_ASCII: Converts a 4-bit nibble representation of a hex digit to its 8-bit ASCII equivalent.
-    FUNCTION NIB_TO_ASCII (
+    ---------------------------
+    -- Function to convert nibble to ASCII
+    ---------------------------
+    FUNCTION NIB_TO_ASCII ( -- NIB_TO_ASCII: Converts a 4-bit nibble representation of a hex digit to its 8-bit ASCII equivalent.
         v_in: IN STD_LOGIC_VECTOR(3 DOWNTO 0))
         RETURN STD_LOGIC_VECTOR IS
         VARIABLE v_temp: UNSIGNED(7 DOWNTO 0);
@@ -57,11 +61,13 @@ ARCHITECTURE arch OF cmdL IS
         v_out := STD_LOGIC_VECTOR(v_temp);
         RETURN v_out;
     END NIB_TO_ASCII;
-    -----------------------------------------------------
 
 BEGIN
     p1: printer PORT MAP(en, dataIn, clk, reset, txdone, txData, txnow, finished);
-    -----------------------------------------------------
+
+    ---------------------------
+    -- Combinatorial Inputs
+    ---------------------------
     combi_nextState: PROCESS(curState, enL, finished, counter)
     BEGIN
         CASE curState IS
@@ -121,12 +127,16 @@ BEGIN
                 nextState <= IDLE;         
         END case;
     END process;
-    -----------------------------------------------------
+    
+    ---------------------------
+    -- Combinatorial Outputs
+    ---------------------------
     combi_out: PROCESS(curState, counter)
     BEGIN
         doneL <= '0';
         en <= '0';
         en_count <= '0';
+        dataIn <= "00000000";
         IF curState = CHECK AND counter = 7 THEN
             doneL <= '1'; 
         ELSIF curState = PREP_CHAR1 THEN
@@ -147,7 +157,10 @@ BEGIN
             en <= '1';
         END IF;
     END PROCESS; -- combi_output
-  ----------------------------------------------------
+    
+    ---------------------------
+    -- Sequential counting
+    ---------------------------
     counting: PROCESS(clk)
     BEGIN
         IF clk'EVENT AND clk='1' THEN
@@ -160,7 +173,10 @@ BEGIN
             END IF;
         END IF;
     END PROCESS;
-  -----------------------------------------------------
+    
+    ---------------------------
+    -- Sequential state updating
+    ---------------------------
     seq_state: PROCESS (clk)
     BEGIN
         IF clk'EVENT AND clk='1' THEN
@@ -171,5 +187,4 @@ BEGIN
             END IF;
         END IF;
     END PROCESS; 
-  -----------------------------------------------------
 END arch; 
