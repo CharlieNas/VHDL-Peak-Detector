@@ -42,7 +42,7 @@ ARCHITECTURE arch OF cmdProc IS
     SIGNAL maxIndex_stored: BCD_ARRAY_TYPE(2 DOWNTO 0);  
     SIGNAL dataResults_stored: CHAR_ARRAY_TYPE(0 TO RESULT_BYTE_NUM-1);
     -- Enabling Registers
-    SIGNAL en_NNN_2, en_NNN_1, en_NNN_0, en_storedByte, en_start: STD_LOGIC;
+    SIGNAL en_NNN_2, en_NNN_1, en_NNN_0, en_storedByte, en_numWords: STD_LOGIC;
     SIGNAL NNN: BCD_ARRAY_TYPE(2 DOWNTO 0);
     SIGNAL NNN_val: STD_LOGIC_VECTOR(3 DOWNTO 0);
     SIGNAL storedByte: UNSIGNED(7 DOWNTO 0);
@@ -354,10 +354,10 @@ BEGIN
         en_NNN_2 <= '0';
         en_NNN_1 <= '0';
         en_NNN_0 <= '0';
-        en_start <= '0';
+        en_numWords <= '0';
         rxDone <= '0';
-        NNN_val <= "0000";
         start <= '0';
+        NNN_val <= "0000";
         dataIn <= "00000000";
         CASE curState IS
             ---------------------------------------------------------------------------------
@@ -412,6 +412,7 @@ BEGIN
             WHEN WAIT_LINE => -- Prep printing for line feed
                 dataIn <= "00001010";
                 en <= '1';
+                en_numWords <= '1';
             WHEN WAIT_CARRIAGE2 => -- Prep printing for carriage return
                 dataIn <= "00001101";
                 en <= '1';
@@ -422,7 +423,7 @@ BEGIN
             -- Data Processor communication and bytes printed
             ---------------------------------------------------------------------------------
             WHEN STARTING => -- Set start and numWords
-                en_start <= '1';
+                start <= '1';
             WHEN DATAPROC => -- Store byte once received
                 IF dataReady_reg = '1' THEN
                     en_storedByte <= '1';
@@ -514,16 +515,14 @@ BEGIN
         END IF;
     END PROCESS;
     
-    starting : PROCESS(clk)
+    seq_starting : PROCESS(clk)
     BEGIN
         IF clk'EVENT AND clk='1' THEN
-            IF en_start = '1' THEN
-                start <= '1'; 
+            IF en_numWords = '1' THEN
                 numWords_bcd <= NNN;
-            ELSE 
-                start <= '0';
             END IF;
         END IF;
+     END PROCESS;
     
     ---------------------------
     -- Input registering
