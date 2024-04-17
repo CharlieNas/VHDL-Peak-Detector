@@ -131,7 +131,7 @@ BEGIN
     ---------------------------
     -- Combinatorial Outputs
     ---------------------------
-    combi_out: PROCESS(curState, counter)
+    combi_out: PROCESS(curState, counter, dataResults)
     BEGIN
         doneL <= '0';
         en <= '0';
