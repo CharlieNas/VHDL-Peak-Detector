@@ -32,7 +32,6 @@ architecture Behavioral of dataConsume is
 
   signal en_count, reset_count: boolean := TRUE;
   signal en_bcd_to_int: boolean := FALSE;
-  signal en_update_peak: boolean := FALSE;
   signal en_peak_detection: boolean := FALSE;
 
   -- signals to keep of fetched data
@@ -169,16 +168,6 @@ begin
     end if;
   end process;
 
-  -- UpdatePeakValue: process(clk)
-  -- begin
-  --   if rising_edge(clk) then
-  --     if reset = '1' then
-  --       peak_value <= (others => '0');
-  --     elsif curr_state = PROCESS_DATA and (counter = 0 or signed(data) > peak_value) then
-  --       peak_value <= signed(data);
-  --     end if;
-  --   end if;
-  -- end process;
 
   --------------------------------
   --  State Machine Transitions
@@ -246,16 +235,12 @@ begin
     case curr_state is
       when IDLE => 
         reset_count <= TRUE;
-        
-        
-        
         if start = '1' then
           en_bcd_to_int <= TRUE;
         end if;
 
       -- Processing coming bytes finding peak and storing values in DataResults
       when PROCESS_DATA =>
-        
         if edge_detected_ctrlIn = '1' then
           en_count <= TRUE;
           en_peak_detection <= TRUE;
