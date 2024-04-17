@@ -25,7 +25,7 @@ architecture Behavioral of dataConsume is
   type state_type is (
     IDLE, 
     FETCH_DATA,
-    UPDATE_NEXT_VALUES, 
+    UPDATE_NEXT, 
     PEAK_DETECTION, 
     UPDATE_LAST_THREE_VALUES, 
     WAIT_CMDP, 
@@ -232,12 +232,12 @@ begin
   
       when FETCH_DATA => 
         if edge_detected_ctrlIn = '1' then
-          next_state <= UPDATE_NEXT_VALUES;
+          next_state <= UPDATE_NEXT;
         else
           next_state <= FETCH_DATA;
         end if;
   
-      when UPDATE_NEXT_VALUES => 
+      when UPDATE_NEXT => 
         next_state <= PEAK_DETECTION;
   
       when PEAK_DETECTION =>
@@ -258,6 +258,7 @@ begin
             next_state <= FETCH_DATA;
         else
           next_state <= IDLE;
+        end if;
   
       when others =>
         next_state <= IDLE;
@@ -296,7 +297,7 @@ begin
 
         en_count <= TRUE;
 
-      when UPDATE_NEXT_VALUES => 
+      when UPDATE_NEXT => 
         reset_count <= FALSE;
         en_bcd_to_int <= FALSE;
         en_last_three <= FALSE;
