@@ -345,7 +345,7 @@ BEGIN
     ---------------------------
     -- Combinatorial Outputs
     ---------------------------
-    combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg, storedByte)
+    combi_out: PROCESS(curState, finished, rxData_reg, dataReady_reg, storedByte, rxNow_reg, seqDone_reg)
     BEGIN
         en <= '0';
         en_storedByte <= '0';
