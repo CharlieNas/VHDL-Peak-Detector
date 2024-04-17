@@ -110,10 +110,7 @@ begin
     end if;
   end process;
 
-  ---------------------------
-  -- Determine Next State
-  ---------------------------
-  NextState: process(curr_state, start, edge_detected_ctrlIn)
+  combi_next: process(curr_state, start, edge_detected_ctrlIn)
   begin
     en_count <= FALSE;
     case curr_state is
@@ -129,11 +126,6 @@ begin
         numWords_int <= 0;
         
         if start = '1' then
-          -- Convert number of words from BCD to integer
-          numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
-                          to_integer(unsigned(numWords_bcd(1))) * 10 + 
-                          to_integer(unsigned(numWords_bcd(0))); 
-
           next_state <= PROCESS_DATA;
         else
           next_state <= IDLE;
@@ -141,6 +133,58 @@ begin
 
       -- Processing coming bytes finding peak and storing values in DataResults
       when PROCESS_DATA => 
+        if edge_detected_ctrlIn = '1' then
+          next_state <= WAIT_CMDP;
+        else
+          next_state <= PROCESS_DATA;
+        end if;
+
+      -- Waiting for start from command processor or first run through  
+      when WAIT_CMDP =>
+        if start = '1' or counter = 1 then
+            next_state <= CHECK_COMPLETE;
+        else 
+            next_state <= WAIT_CMDP;
+        end if;
+      
+      -- Check if should do another byte or stop  
+      when CHECK_COMPLETE =>
+        if counter < numWords_int then
+            next_state <= PROCESS_DATA;
+        else
+          next_state <= IDLE;
+        end if;
+      
+      when others =>
+        next_state <= IDLE;
+    end case;
+  end process;
+
+  combi_out: process(curr_state, start, edge_detected_ctrlIn)
+  begin
+    reset_count <= FALSE;
+    case curr_state is
+      -- Reset and check for start from command processor
+      when IDLE => 
+        reset_count <= TRUE;
+        en_bcd_to_int <= FALSE;
+        peak_value <= (others => '0');
+        update_next_values <= 0;
+        dataReady <= '0';
+        seqDone <= '0';
+        lastThreeBytes <= (others => (others => '0'));
+        numWords_int <= 0;
+
+        if start = '1' then
+          en_bcd_to_int <= TRUE;
+        end if;
+
+      -- Processing coming bytes finding peak and storing values in DataResults
+      when PROCESS_DATA => 
+        reset_count <= FALSE;
+        dataReady <= '0';
+        seqDone <= '0';
+
         if edge_detected_ctrlIn = '1' then
           dataReady <= '0';
           seqDone <= '0';
@@ -167,7 +211,6 @@ begin
           --    If it's the first byte or the current byte is greater than past peak value
           if counter = 0 or signed(data) > peak_value then
               peak_value <= signed(data);
-              peak_index <= counter;
 
               -- Update max index which in this case would be the same number as the counter
               maxIndex(0) <= std_logic_vector(to_unsigned(counter mod 10, 4));
@@ -195,34 +238,16 @@ begin
           lastThreeBytes(2) <= lastThreeBytes(1);
           lastThreeBytes(1) <= lastThreeBytes(0);
           lastThreeBytes(0) <= signed(data);
-          
-          next_state <= WAIT_CMDP;
-        else
-          next_state <= PROCESS_DATA;
-        end if;
-
-      -- Waiting for start from command processor or first run through  
-      when WAIT_CMDP =>
-        if start = '1' or counter = 1 then
-            next_state <= CHECK_COMPLETE;
-        else 
-            next_state <= WAIT_CMDP;
         end if;
       
       -- Check if should do another byte or stop  
       when CHECK_COMPLETE =>
         dataReady <= '1';
         -- If we haven't reached the number of words we need to process, keep going
-        if counter < numWords_int then
-            next_state <= PROCESS_DATA;
-        else
-          -- If we have reached the number of words, the sequence is done
+        if counter >= numWords_int then
           seqDone <= '1';
-          next_state <= IDLE;
         end if;
-      
       when others =>
-        next_state <= IDLE;
     end case;
   end process;
 
