@@ -22,18 +22,19 @@ end dataConsume;
 
 architecture Behavioral of dataConsume is
   -- Declaring types
-  type state_type is (IDLE, PROCESS_DATA, WAIT_CMDP, CHECK_COMPLETE);
+  type state_type is (IDLE, PROCESS_DATA, WAIT_CMDP, CHECK_COMPLETE, FILL_DATA);
   type signed_array is array (integer range <>) of signed(7 downto 0);
 
   -- signals for state machine and two phase control
   signal curr_state, next_state: state_type;
   signal prev_ctrlIn, ctrlOut_state: std_logic := '0';
   signal edge_detected_ctrlIn: std_logic := '0';
+  signal en_data: std_logic := '0';
 
-  -- signals for counter
-  signal reset_count: boolean := FALSE;
-  signal en_count: boolean := FALSE;
+  signal en_count, reset_count: boolean := TRUE;
   signal en_bcd_to_int: boolean := FALSE;
+  signal en_peak_detection: boolean := FALSE;
+  signal en_reset: boolean := FALSE;
 
   -- signals to keep of fetched data
   signal numWords_int: integer := 0;
@@ -41,7 +42,6 @@ architecture Behavioral of dataConsume is
 
   -- signals for the peak detection algorithm
   signal peak_value: signed(7 downto 0) := (others => '0');
-  signal peak_index: integer := 0;
   signal update_next_values: integer := 0;
   signal lastThreeBytes: signed_array(0 to 2) := (others => (others => '0'));
 
@@ -77,6 +77,21 @@ begin
     ctrlOut <= ctrlOut_state;
   end process;
 
+  ----------------------------
+  --  Byte output
+  --  keep sending the bytes we read to the command processor
+  ---------------------------
+  ByteOutput: process(clk)
+  begin
+    if rising_edge(clk) then
+      if reset = '1' then 
+        byte <= "00000000";
+      elsif en_data = '1' THEN
+        byte <= data;
+      end if;
+    end if;
+  end process;
+
   UpdateCounter: process(clk)
   begin
    if rising_edge(clk) then
@@ -88,25 +103,77 @@ begin
     end if;
   end process; 
 
-  BCDtoINT: process(clk)
+  PeakDetection: process(clk)
   begin
-    if rising_edge(clk) then
-      if en_bcd_to_int = TRUE then
-        numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
-                        to_integer(unsigned(numWords_bcd(1))) * 10 + 
-                        to_integer(unsigned(numWords_bcd(0))); 
+   if rising_edge(clk) then
+      if reset = '1' or en_reset then
+        peak_value <= (others => '0');
+        update_next_values <= 0;
+        lastThreeBytes <= (others => (others => '0'));
+        maxIndex <= (others => (others => '0'));
+        dataResults <= (others => (others => '0'));
+      elsif en_peak_detection = TRUE then
+        -- 1. Update dataResults with next three values if the peak was recently found.
+        --    We use update_next_values to keep track of how many values we have stored after the peak
+        if update_next_values > 0 then
+          case update_next_values is
+              when 3 =>
+                  dataResults(2) <= std_logic_vector(signed(data));
+              when 2 =>
+                  dataResults(1) <= std_logic_vector(signed(data));
+              when 1 =>
+                  dataResults(0) <= std_logic_vector(signed(data));
+              when others =>
+                  null;
+          end case;
+          update_next_values <= update_next_values - 1;
+        end if;
+
+        -- 2. Peak detection.
+        --    If it's the first byte or the current byte is greater than past peak value
+        if counter = 0 or signed(data) > peak_value then
+            peak_value <= signed(data);
+            -- Update max index which in this case would be the same number as the counter
+            maxIndex(0) <= std_logic_vector(to_unsigned(counter mod 10, 4));
+            maxIndex(1) <= std_logic_vector(to_unsigned((counter / 10) mod 10, 4));
+            maxIndex(2) <= std_logic_vector(to_unsigned((counter / 100) mod 10, 4));
+
+            -- Update the values before the peak
+            dataResults(6) <= std_logic_vector(lastThreeBytes(2));
+            dataResults(5) <= std_logic_vector(lastThreeBytes(1));
+            dataResults(4) <= std_logic_vector(lastThreeBytes(0));
+            -- Update the peak value
+            dataResults(3) <= std_logic_vector(signed(data));
+            -- Reset values after the peak
+            dataResults(2) <= (others => '0');
+            dataResults(1) <= (others => '0');
+            dataResults(0) <= (others => '0');
+            
+            -- Update update_next_values to indicate that we need to store the next three values
+            -- in the following iterations
+            update_next_values <= 3;
+        end if;
+
+        -- 3. Always keep track of the last three bytes to store them in the dataResults
+        -- when the peak is found
+        lastThreeBytes(2) <= lastThreeBytes(1);
+        lastThreeBytes(1) <= lastThreeBytes(0);
+        lastThreeBytes(0) <= signed(data);
       end if;
     end if;
   end process;
 
-  ----------------------------
-  --  Byte output
-  --  keep sending the bytes we read to the command processor
-  ---------------------------
-  ByteOutput: process(clk)
+
+  BCDtoINT: process(clk)
   begin
     if rising_edge(clk) then
-      byte <= data;
+      if reset = '1' then
+        numWords_int <= 0;
+      elsif en_bcd_to_int = TRUE then
+        numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
+                        to_integer(unsigned(numWords_bcd(1))) * 10 + 
+                        to_integer(unsigned(numWords_bcd(0))); 
+      end if;
     end if;
   end process;
 
@@ -124,9 +191,6 @@ begin
     end if;
   end process;
 
-  ---------------------------
-  -- Determine Next State
-  ---------------------------
   combi_next: process(curr_state, start, edge_detected_ctrlIn)
   begin
     case curr_state is
@@ -149,10 +213,13 @@ begin
       -- Waiting for start from command processor or first run through  
       when WAIT_CMDP =>
         if start = '1' or counter = 1 then
-            next_state <= CHECK_COMPLETE;
+            next_state <= FILL_DATA;
         else 
             next_state <= WAIT_CMDP;
         end if;
+      
+      when FILL_DATA => 
+        next_state <= CHECK_COMPLETE;
       
       -- Check if should do another byte or stop  
       when CHECK_COMPLETE =>
@@ -169,81 +236,32 @@ begin
 
   combi_out: process(curr_state, start, edge_detected_ctrlIn)
   begin
+    en_count <= FALSE;
+    reset_count <= FALSE;
+    en_bcd_to_int <= FALSE;
+    en_peak_detection <= FALSE;
+    en_reset <= FALSE;
+    dataReady <= '0';
+    seqDone <= '0';
+    en_data <= '0';
+    
     case curr_state is
-      -- Reset and check for start from command processor
       when IDLE => 
+        en_reset <= TRUE;
         reset_count <= TRUE;
-        en_bcd_to_int <= FALSE;
-        peak_value <= (others => '0');
-        update_next_values <= 0;
-        dataReady <= '0';
-        seqDone <= '0';
-        lastThreeBytes <= (others => (others => '0'));
-        numWords_int <= 0;
-
         if start = '1' then
           en_bcd_to_int <= TRUE;
         end if;
 
       -- Processing coming bytes finding peak and storing values in DataResults
-      when PROCESS_DATA => 
-        reset_count <= FALSE;
-        dataReady <= '0';
-        seqDone <= '0';
-
+      when PROCESS_DATA =>
         if edge_detected_ctrlIn = '1' then
-          dataReady <= '0';
-          seqDone <= '0';
           en_count <= TRUE;
-         
-          -- 1. Update dataResults with next three values if the peak was recently found.
-          --    We use update_next_values to keep track of how many values we have stored after the peak
-          if update_next_values > 0 then
-            case update_next_values is
-                when 3 =>
-                    dataResults(2) <= std_logic_vector(signed(data));
-                when 2 =>
-                    dataResults(1) <= std_logic_vector(signed(data));
-                when 1 =>
-                    dataResults(0) <= std_logic_vector(signed(data));
-                when others =>
-                    null;
-            end case;
-            update_next_values <= update_next_values - 1;
-          end if;
-          
-          -- 2. Peak detection.
-          --    If it's the first byte or the current byte is greater than past peak value
-          if counter = 0 or signed(data) > peak_value then
-              peak_value <= signed(data);
-
-              -- Update max index which in this case would be the same number as the counter
-              maxIndex(0) <= std_logic_vector(to_unsigned(counter mod 10, 4));
-              maxIndex(1) <= std_logic_vector(to_unsigned((counter / 10) mod 10, 4));
-              maxIndex(2) <= std_logic_vector(to_unsigned((counter / 100) mod 10, 4));
-
-              -- Update the values before the peak
-              dataResults(6) <= std_logic_vector(lastThreeBytes(2));
-              dataResults(5) <= std_logic_vector(lastThreeBytes(1));
-              dataResults(4) <= std_logic_vector(lastThreeBytes(0));
-              -- Update the peak value
-              dataResults(3) <= std_logic_vector(signed(data));
-              -- Reset values after the peak
-              dataResults(2) <= (others => '0');
-              dataResults(1) <= (others => '0');
-              dataResults(0) <= (others => '0');
-              
-              -- Update update_next_values to indicate that we need to store the next three values
-              -- in the following iterations
-              update_next_values <= 3;
-          end if;
-
-          -- 3. Always keep track of the last three bytes to store them in the dataResults
-          -- when the peak is found
-          lastThreeBytes(2) <= lastThreeBytes(1);
-          lastThreeBytes(1) <= lastThreeBytes(0);
-          lastThreeBytes(0) <= signed(data);
+          en_peak_detection <= TRUE;
         end if;
+      
+      when FILL_DATA =>
+        en_data <= '1';
       
       -- Check if should do another byte or stop  
       when CHECK_COMPLETE =>
@@ -253,6 +271,7 @@ begin
           seqDone <= '1';
         end if;
       when others =>
+        null;
     end case;
   end process;
 
