@@ -32,6 +32,7 @@ architecture Behavioral of dataConsume is
 
   signal en_count, reset_count: boolean := TRUE;
   signal en_bcd_to_int: boolean := FALSE;
+  signal en_update_peak: boolean := FALSE;
 
   -- signals to keep of fetched data
   signal numWords_int: integer := 0;
@@ -110,6 +111,17 @@ begin
     end if;
   end process;
 
+  -- UpdatePeakValue: process(clk)
+  -- begin
+  --   if rising_edge(clk) then
+  --     if reset = '1' then
+  --       peak_value <= (others => '0');
+  --     elsif curr_state = PROCESS_DATA and (counter = 0 or signed(data) > peak_value) then
+  --       peak_value <= signed(data);
+  --     end if;
+  --   end if;
+  -- end process;
+
   --------------------------------
   --  State Machine Transitions
   --------------------------------
@@ -183,7 +195,8 @@ begin
         end if;
 
       -- Processing coming bytes finding peak and storing values in DataResults
-      when PROCESS_DATA => 
+      when PROCESS_DATA =>
+        peak_value <= peak_value;
         if edge_detected_ctrlIn = '1' then
           en_count <= TRUE;
          
@@ -207,7 +220,6 @@ begin
           --    If it's the first byte or the current byte is greater than past peak value
           if counter = 0 or signed(data) > peak_value then
               peak_value <= signed(data);
-
               -- Update max index which in this case would be the same number as the counter
               maxIndex(0) <= std_logic_vector(to_unsigned(counter mod 10, 4));
               maxIndex(1) <= std_logic_vector(to_unsigned((counter / 10) mod 10, 4));
@@ -235,9 +247,13 @@ begin
           lastThreeBytes(1) <= lastThreeBytes(0);
           lastThreeBytes(0) <= signed(data);
         end if;
+
+      when WAIT_CMDP =>
+        peak_value <= peak_value;
       
       -- Check if should do another byte or stop  
       when CHECK_COMPLETE =>
+        peak_value <= peak_value;
         dataReady <= '1';
         -- If we haven't reached the number of words we need to process, keep going
         if counter >= numWords_int then
