@@ -38,7 +38,6 @@ architecture Behavioral of dataConsume is
 
   -- signals for the peak detection algorithm
   signal peak_value: signed(7 downto 0) := (others => '0');
-  signal peak_index: integer := 0;
   signal update_next_values: integer := 0;
   signal lastThreeBytes: signed_array(0 to 2) := (others => (others => '0'));
 
@@ -153,14 +152,14 @@ begin
   combi_out: process(curr_state, start, edge_detected_ctrlIn)
   begin
     en_count <= FALSE;
+    reset_count <= FALSE;
+    dataReady <= '0';
+    seqDone <= '0';
     case curr_state is
       when IDLE => 
         reset_count <= TRUE;
         peak_value <= (others => '0');
-        peak_index <= 0;
         update_next_values <= 0;
-        dataReady <= '0';
-        seqDone <= '0';
         lastThreeBytes <= (others => (others => '0'));
         numWords_int <= 0;
         
@@ -175,9 +174,6 @@ begin
       -- Processing coming bytes finding peak and storing values in DataResults
       when PROCESS_DATA => 
         if edge_detected_ctrlIn = '1' then
-          dataReady <= '0';
-          seqDone <= '0';
-          reset_count <= FALSE;
           en_count <= TRUE;
          
           -- 1. Update dataResults with next three values if the peak was recently found.
@@ -200,7 +196,6 @@ begin
           --    If it's the first byte or the current byte is greater than past peak value
           if counter = 0 or signed(data) > peak_value then
               peak_value <= signed(data);
-              peak_index <= counter;
 
               -- Update max index which in this case would be the same number as the counter
               maxIndex(0) <= std_logic_vector(to_unsigned(counter mod 10, 4));
@@ -228,7 +223,6 @@ begin
           lastThreeBytes(2) <= lastThreeBytes(1);
           lastThreeBytes(1) <= lastThreeBytes(0);
           lastThreeBytes(0) <= signed(data);
-          
         end if;
       
       -- Check if should do another byte or stop  
@@ -238,7 +232,6 @@ begin
         if counter >= numWords_int then
           seqDone <= '1';
         end if;
-      
       when others =>
         null;
     end case;
