@@ -30,6 +30,11 @@ architecture Behavioral of dataConsume is
   signal prev_ctrlIn, ctrlOut_state: std_logic := '0';
   signal edge_detected_ctrlIn: std_logic := '0';
 
+  -- signals for counter
+  signal reset_count: boolean := FALSE;
+  signal en_count: boolean := FALSE;
+  signal en_bcd_to_int: boolean := FALSE;
+
   -- signals to keep of fetched data
   signal numWords_int: integer := 0;
   signal counter: integer := 0;
@@ -70,6 +75,28 @@ begin
       end if;
     end if;
     ctrlOut <= ctrlOut_state;
+  end process;
+
+  UpdateCounter: process(clk)
+  begin
+   if rising_edge(clk) then
+      if reset_count = TRUE then
+        counter <= 0;
+      elsif en_count = TRUE then
+        counter <= counter + 1;
+      end if;
+    end if;
+  end process; 
+
+  BCDtoINT: process(clk)
+  begin
+    if rising_edge(clk) then
+      if en_bcd_to_int = TRUE then
+        numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
+                        to_integer(unsigned(numWords_bcd(1))) * 10 + 
+                        to_integer(unsigned(numWords_bcd(0))); 
+      end if;
+    end if;
   end process;
 
   ----------------------------
@@ -145,27 +172,29 @@ begin
     case curr_state is
       -- Reset and check for start from command processor
       when IDLE => 
-        counter <= 0;
+        reset_count <= TRUE;
+        en_bcd_to_int <= FALSE;
         peak_value <= (others => '0');
-        peak_index <= 0;
         update_next_values <= 0;
         dataReady <= '0';
         seqDone <= '0';
         lastThreeBytes <= (others => (others => '0'));
         numWords_int <= 0;
+
         if start = '1' then
-          -- Convert number of words from BCD to integer
-          numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
-                          to_integer(unsigned(numWords_bcd(1))) * 10 + 
-                          to_integer(unsigned(numWords_bcd(0))); 
+          en_bcd_to_int <= TRUE;
         end if;
 
       -- Processing coming bytes finding peak and storing values in DataResults
       when PROCESS_DATA => 
+        reset_count <= FALSE;
+        dataReady <= '0';
+        seqDone <= '0';
+
         if edge_detected_ctrlIn = '1' then
           dataReady <= '0';
           seqDone <= '0';
-          counter <= counter + 1;
+          en_count <= TRUE;
          
           -- 1. Update dataResults with next three values if the peak was recently found.
           --    We use update_next_values to keep track of how many values we have stored after the peak
@@ -187,7 +216,6 @@ begin
           --    If it's the first byte or the current byte is greater than past peak value
           if counter = 0 or signed(data) > peak_value then
               peak_value <= signed(data);
-              peak_index <= counter;
 
               -- Update max index which in this case would be the same number as the counter
               maxIndex(0) <= std_logic_vector(to_unsigned(counter mod 10, 4));
