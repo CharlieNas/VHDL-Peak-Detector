@@ -160,7 +160,7 @@ BEGIN
     format_chars: PROCESS (clk)
     BEGIN
         IF clk'EVENT AND clk='1' THEN
-            IF reset = '1' OR dataIn_reset = '1' THEN
+            IF reset = '1' THEN
                 fullData(0) <= "00000000";
                 fullData(1) <= "00000000";
                 fullData(2) <= "00000000";
