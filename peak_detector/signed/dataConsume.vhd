@@ -31,6 +31,7 @@ architecture Behavioral of dataConsume is
   signal edge_detected_ctrlIn: std_logic := '0';
 
   signal en_count, reset_count: boolean := TRUE;
+  signal en_bcd_to_int: boolean := FALSE;
 
   -- signals to keep of fetched data
   signal numWords_int: integer := 0;
@@ -95,6 +96,20 @@ begin
     end if;
   end process; 
 
+
+  BCDtoINT: process(clk)
+  begin
+    if rising_edge(clk) then
+      if reset = '1' then
+        numWords_int <= 0;
+      elsif en_bcd_to_int = TRUE then
+        numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
+                        to_integer(unsigned(numWords_bcd(1))) * 10 + 
+                        to_integer(unsigned(numWords_bcd(0))); 
+      end if;
+    end if;
+  end process;
+
   --------------------------------
   --  State Machine Transitions
   --------------------------------
@@ -153,6 +168,7 @@ begin
   begin
     en_count <= FALSE;
     reset_count <= FALSE;
+    en_bcd_to_int <= FALSE;
     dataReady <= '0';
     seqDone <= '0';
     case curr_state is
@@ -161,14 +177,9 @@ begin
         peak_value <= (others => '0');
         update_next_values <= 0;
         lastThreeBytes <= (others => (others => '0'));
-        numWords_int <= 0;
         
         if start = '1' then
-          -- Convert number of words from BCD to integer
-          numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
-                          to_integer(unsigned(numWords_bcd(1))) * 10 + 
-                          to_integer(unsigned(numWords_bcd(0))); 
-
+          en_bcd_to_int <= TRUE;
         end if;
 
       -- Processing coming bytes finding peak and storing values in DataResults
