@@ -102,7 +102,7 @@ BEGIN
     ---------------------------
     -- Combinatorial Outputs
     ---------------------------
-    combi_out: PROCESS(curState, finished_reg, enP_reg)
+    combi_out: PROCESS(curState, finished_reg, enP_reg, fullData, b_index)
     BEGIN
         doneP <= '0';
         print_en <= '0';
@@ -154,7 +154,7 @@ BEGIN
     ---------------------------
     -- Counter for b_index
     ---------------------------
-    b_index_counter: PROCESS(reset,clk)
+    b_index_counter: PROCESS(clk)
     BEGIN
 		IF clk'EVENT and clk='1' THEN
             IF reset = '1' OR b_index_reset = '1' THEN -- active high reset
