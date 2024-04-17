@@ -168,7 +168,6 @@ begin
     end if;
   end process;
 
-
   --------------------------------
   --  State Machine Transitions
   --------------------------------
