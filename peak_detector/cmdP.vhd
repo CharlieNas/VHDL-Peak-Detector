@@ -71,7 +71,7 @@ BEGIN
     ---------------------------
     -- Combinatorial Inputs
     ---------------------------
-    combi_nextState: PROCESS(curState, enP_reg, finished_reg)
+    combi_nextState: PROCESS(curState, enP_reg, finished_reg, b_index)
     BEGIN
         CASE curState IS
             WHEN IDLE =>
@@ -102,13 +102,14 @@ BEGIN
     ---------------------------
     -- Combinatorial Outputs
     ---------------------------
-    combi_out: PROCESS(curState, finished_reg)
+    combi_out: PROCESS(curState, finished_reg, enP_reg)
     BEGIN
         doneP <= '0';
         print_en <= '0';
         b_index_en <= '0';
         b_index_reset <= '0';
         fullData_en <= '0';
+        dataIn <= "00000000";
         IF curState = IDLE THEN
             IF enP_reg <= '1' THEN
                 fullData_en <= '1';

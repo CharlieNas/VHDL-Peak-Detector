@@ -41,8 +41,8 @@ ARCHITECTURE arch OF cmdProc IS
     SIGNAL dataResults_reg: CHAR_ARRAY_TYPE(0 TO RESULT_BYTE_NUM-1);
     SIGNAL maxIndex_stored: BCD_ARRAY_TYPE(2 DOWNTO 0);  
     SIGNAL dataResults_stored: CHAR_ARRAY_TYPE(0 TO RESULT_BYTE_NUM-1);
-    -- Pathway registers
-    SIGNAL en_NNN_2, en_NNN_1, en_NNN_0, en_storedByte: STD_LOGIC;
+    -- Enabling Registers
+    SIGNAL en_NNN_2, en_NNN_1, en_NNN_0, en_storedByte, en_start: STD_LOGIC;
     SIGNAL NNN: BCD_ARRAY_TYPE(2 DOWNTO 0);
     SIGNAL NNN_val: STD_LOGIC_VECTOR(3 DOWNTO 0);
     SIGNAL storedByte: UNSIGNED(7 DOWNTO 0);
@@ -196,7 +196,7 @@ BEGIN
                     IF rxData_reg <= "00111001" AND rxData_reg >= "00110000" THEN -- If received a digit
                         nextState <= N0;
                     ELSIF rxData_reg = "01000001" OR rxData_reg = "01100001" THEN  -- If received an A
-                        nextState <= N1;
+                        nextState <= N2;
                     ELSIF (rxData_reg = "01010000" OR rxData_reg = "01110000") and seq_Available = '1' THEN -- If received a P
                         nextState <= PREP_P;
                     ELSIF (rxData_reg = "01001100" OR rxData_reg = "01101100") and seq_Available = '1' THEN -- If received an L
@@ -354,6 +354,7 @@ BEGIN
         en_NNN_2 <= '0';
         en_NNN_1 <= '0';
         en_NNN_0 <= '0';
+        en_start <= '0';
         rxDone <= '0';
         NNN_val <= "0000";
         start <= '0';
@@ -421,8 +422,7 @@ BEGIN
             -- Data Processor communication and bytes printed
             ---------------------------------------------------------------------------------
             WHEN STARTING => -- Set start and numWords
-                start <= '1'; 
-                numWords_bcd <= NNN;
+                en_start <= '1';
             WHEN DATAPROC => -- Store byte once received
                 IF dataReady_reg = '1' THEN
                     en_storedByte <= '1';
@@ -513,8 +513,18 @@ BEGIN
           END IF;
         END IF;
     END PROCESS;
-
-
+    
+    starting : PROCESS(clk)
+    BEGIN
+        IF clk'EVENT AND clk='1' THEN
+            IF en_start = '1' THEN
+                start <= '1'; 
+                numWords_bcd <= NNN;
+            ELSE 
+                start <= '0';
+            END IF;
+        END IF;
+    
     ---------------------------
     -- Input registering
     ---------------------------
