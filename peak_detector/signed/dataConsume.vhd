@@ -33,6 +33,7 @@ architecture Behavioral of dataConsume is
   signal en_count, reset_count: boolean := TRUE;
   signal en_bcd_to_int: boolean := FALSE;
   signal en_peak_detection: boolean := FALSE;
+  signal en_reset: boolean := FALSE;
 
   -- signals to keep of fetched data
   signal numWords_int: integer := 0;
@@ -100,10 +101,12 @@ begin
   PeakDetection: process(clk)
   begin
    if rising_edge(clk) then
-      if reset = '1' then
+      if reset = '1' or en_reset then
         peak_value <= (others => '0');
         update_next_values <= 0;
         lastThreeBytes <= (others => (others => '0'));
+        maxIndex <= (others => (others => '0'));
+        dataResults <= (others => (others => '0'));
       elsif en_peak_detection = TRUE then
         -- 1. Update dataResults with next three values if the peak was recently found.
         --    We use update_next_values to keep track of how many values we have stored after the peak
@@ -154,6 +157,7 @@ begin
       end if;
     end if;
   end process;
+
 
   BCDtoINT: process(clk)
   begin
@@ -228,11 +232,13 @@ begin
     reset_count <= FALSE;
     en_bcd_to_int <= FALSE;
     en_peak_detection <= FALSE;
+    en_reset <= FALSE;
     dataReady <= '0';
     seqDone <= '0';
     
     case curr_state is
       when IDLE => 
+        en_reset <= TRUE;
         reset_count <= TRUE;
         if start = '1' then
           en_bcd_to_int <= TRUE;
