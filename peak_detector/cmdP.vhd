@@ -86,7 +86,7 @@ BEGIN
             WHEN WAITING =>
                 IF finished_reg = '1' THEN
                     IF b_index = 8 THEN
-                        nextState <= FINAL;
+                        nextState <= IDLE;
                     ELSE
                         nextState <= PRINTING;
                     END IF;
@@ -117,11 +117,13 @@ BEGIN
             END IF;
         ELSIF curState = PRINTING THEN
             print_en <= '1';
-            b_index_en <= '1';
+--            dataIn_en <= '1';
             dataIn <= fullData(TO_INTEGER(b_index));
+            b_index_en <= '1';
         ELSIF curState = FINAL THEN
             doneP <= '1';
             b_index_reset <= '1';
+--            dataIn_reset <= '1';
         END IF;
     END PROCESS; -- combi_output
     
@@ -158,7 +160,7 @@ BEGIN
     format_chars: PROCESS (clk)
     BEGIN
         IF clk'EVENT AND clk='1' THEN
-            IF reset = '1' THEN
+            IF reset = '1' OR dataIn_reset = '1' THEN
                 fullData(0) <= "00000000";
                 fullData(1) <= "00000000";
                 fullData(2) <= "00000000";
@@ -176,20 +178,8 @@ BEGIN
                 fullData(5) <= NIB_TO_ASCII(maxIndex(2));               -- 10^2 char: fourth
                 fullData(6) <= NIB_TO_ASCII(maxIndex(1));               -- 10^1 char: fitfh
                 fullData(7) <= NIB_TO_ASCII(maxIndex(0));               -- 10^0 char: sixth
-            END IF;
-        END IF;
-    END PROCESS; 
-    
-    ---------------------------
-    -- Sequential state updating
-    ---------------------------
-    seq_state: PROCESS (clk)
-    BEGIN
-        IF clk'EVENT AND clk='1' THEN
-            IF reset = '1' THEN
-                curState <= IDLE;
-            ELSE
-                curState <= nextState;
+    --            fullData(6) <= "00001010";                              -- Line Feed (\n): seventh
+    --            fullData(7) <= "00001101";                              -- Carriage Return (\r): eighth
             END IF;
         END IF;
     END PROCESS; 
