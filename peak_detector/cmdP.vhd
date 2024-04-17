@@ -4,7 +4,6 @@ use ieee.numeric_std.all;
 use work.common_pack.all;
 library UNISIM;
 use UNISIM.VCOMPONENTS.ALL;
---use UNISIM.VPKG.ALL;
 
 ENTITY cmdP IS
     PORT (
@@ -28,13 +27,13 @@ ARCHITECTURE arch OF cmdP IS
     SIGNAL fullData: ASCII_SEQUENCE;
     
     SIGNAL enP_reg, print_en, finished: STD_LOGIC;
-    SIGNAL b_index_en, b_index_reset, fulldata_en: STD_LOGIC;
+    SIGNAL b_index_en, b_index_reset, fulldata_en  : STD_LOGIC;
     SIGNAL b_index: UNSIGNED(3 DOWNTO 0) := "0000"; --byte index
     SIGNAL peakByte_reg : STD_LOGIC_VECTOR (7 DOWNTO 0);
     SIGNAL maxIndex_reg: BCD_ARRAY_TYPE(2 DOWNTO 0);
     SIGNAL dataIn : STD_LOGIC_VECTOR (7 DOWNTO 0);
     SIGNAL finished_reg: STD_LOGIC;
-
+    
     ---------------------------
     -- Component Definitions
     ---------------------------
@@ -86,7 +85,7 @@ BEGIN
             WHEN WAITING =>
                 IF finished_reg = '1' THEN
                     IF b_index = 8 THEN
-                        nextState <= IDLE;
+                        nextState <= FINAL;
                     ELSE
                         nextState <= PRINTING;
                     END IF;
@@ -99,7 +98,7 @@ BEGIN
                 nextState <= IDLE;
         END CASE;
     END PROCESS;
-
+    
     ---------------------------
     -- Combinatorial Outputs
     ---------------------------
@@ -110,27 +109,24 @@ BEGIN
         b_index_en <= '0';
         b_index_reset <= '0';
         fullData_en <= '0';
-        dataIn <= "00000000";
         IF curState = IDLE THEN
             IF enP_reg <= '1' THEN
                 fullData_en <= '1';
             END IF;
         ELSIF curState = PRINTING THEN
             print_en <= '1';
---            dataIn_en <= '1';
             dataIn <= fullData(TO_INTEGER(b_index));
             b_index_en <= '1';
         ELSIF curState = FINAL THEN
             doneP <= '1';
             b_index_reset <= '1';
---            dataIn_reset <= '1';
         END IF;
     END PROCESS; -- combi_output
     
     ---------------------------
     -- Input registering
     ---------------------------
-    seq_input: PROCESS(clk)
+    seq_in: PROCESS(clk)
     BEGIN
 	    IF clk'event AND clk='1' THEN
 	           enP_reg <= en;
@@ -138,7 +134,21 @@ BEGIN
 	           maxIndex_reg <= maxIndex;
 	           finished_reg <= finished;
 	    END IF;
-	  END PROCESS;
+	  END PROCESS; -- seq_input
+	  
+    ---------------------------
+    -- Change current state
+    ---------------------------
+    seq_state: PROCESS (clk)
+    BEGIN
+        IF clk'EVENT AND clk='1' THEN
+            IF reset = '1' THEN
+                curState <= IDLE;
+            ELSE
+                curState <= nextState;
+            END IF;
+        END IF;
+    END PROCESS; -- seq_state
     
     ---------------------------
     -- Counter for b_index
@@ -152,7 +162,8 @@ BEGIN
 		        b_index <= b_index + 1;
 		    END IF;
 		END IF;
-    END PROCESS;
+    END PROCESS; -- b_index_counter
+    
     
     ---------------------------
     -- Full data sequential management
@@ -175,12 +186,10 @@ BEGIN
                 fullData(2) <= NIB_TO_ASCII(peakByte_reg(7 DOWNTO 4));  -- 16^1 char: first
                 fullData(3) <= NIB_TO_ASCII(peakByte_reg(3 DOWNTO 0));  -- 16^0 char: second
                 fullData(4) <= "00100000";                              -- " "  char: third
-                fullData(5) <= NIB_TO_ASCII(maxIndex(2));               -- 10^2 char: fourth
-                fullData(6) <= NIB_TO_ASCII(maxIndex(1));               -- 10^1 char: fitfh
-                fullData(7) <= NIB_TO_ASCII(maxIndex(0));               -- 10^0 char: sixth
-    --            fullData(6) <= "00001010";                              -- Line Feed (\n): seventh
-    --            fullData(7) <= "00001101";                              -- Carriage Return (\r): eighth
+                fullData(5) <= NIB_TO_ASCII(maxIndex_reg(2));               -- 10^2 char: fourth
+                fullData(6) <= NIB_TO_ASCII(maxIndex_reg(1));               -- 10^1 char: fitfh
+                fullData(7) <= NIB_TO_ASCII(maxIndex_reg(0));               -- 10^0 char: sixth
             END IF;
         END IF;
-    END PROCESS; 
+    END PROCESS; -- format_chars
 END arch;
