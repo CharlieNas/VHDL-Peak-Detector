@@ -112,19 +112,9 @@ begin
 
   combi_next: process(curr_state, start, edge_detected_ctrlIn)
   begin
-    en_count <= FALSE;
     case curr_state is
       -- Reset and check for start from command processor
       when IDLE => 
-        reset_count <= TRUE;
-        peak_value <= (others => '0');
-        peak_index <= 0;
-        update_next_values <= 0;
-        dataReady <= '0';
-        seqDone <= '0';
-        lastThreeBytes <= (others => (others => '0'));
-        numWords_int <= 0;
-        
         if start = '1' then
           next_state <= PROCESS_DATA;
         else
@@ -162,29 +152,28 @@ begin
 
   combi_out: process(curr_state, start, edge_detected_ctrlIn)
   begin
-    reset_count <= FALSE;
+    en_count <= FALSE;
     case curr_state is
-      -- Reset and check for start from command processor
       when IDLE => 
         reset_count <= TRUE;
-        en_bcd_to_int <= FALSE;
         peak_value <= (others => '0');
+        peak_index <= 0;
         update_next_values <= 0;
         dataReady <= '0';
         seqDone <= '0';
         lastThreeBytes <= (others => (others => '0'));
         numWords_int <= 0;
-
+        
         if start = '1' then
-          en_bcd_to_int <= TRUE;
+          -- Convert number of words from BCD to integer
+          numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
+                          to_integer(unsigned(numWords_bcd(1))) * 10 + 
+                          to_integer(unsigned(numWords_bcd(0))); 
+
         end if;
 
       -- Processing coming bytes finding peak and storing values in DataResults
       when PROCESS_DATA => 
-        reset_count <= FALSE;
-        dataReady <= '0';
-        seqDone <= '0';
-
         if edge_detected_ctrlIn = '1' then
           dataReady <= '0';
           seqDone <= '0';
@@ -211,6 +200,7 @@ begin
           --    If it's the first byte or the current byte is greater than past peak value
           if counter = 0 or signed(data) > peak_value then
               peak_value <= signed(data);
+              peak_index <= counter;
 
               -- Update max index which in this case would be the same number as the counter
               maxIndex(0) <= std_logic_vector(to_unsigned(counter mod 10, 4));
@@ -238,6 +228,7 @@ begin
           lastThreeBytes(2) <= lastThreeBytes(1);
           lastThreeBytes(1) <= lastThreeBytes(0);
           lastThreeBytes(0) <= signed(data);
+          
         end if;
       
       -- Check if should do another byte or stop  
@@ -247,7 +238,9 @@ begin
         if counter >= numWords_int then
           seqDone <= '1';
         end if;
+      
       when others =>
+        null;
     end case;
   end process;
 
