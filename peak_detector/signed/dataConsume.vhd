@@ -22,7 +22,7 @@ end dataConsume;
 
 architecture Behavioral of dataConsume is
   -- Declaring types
-  type state_type is (IDLE, PROCESS_DATA, CHECK_COMPLETE, FILL_DATA);
+  type state_type is (IDLE, PROCESS_DATA, WAIT_CMDP, CHECK_COMPLETE);
   type signed_array is array (integer range <>) of signed(7 downto 0);
 
   -- signals for state machine and two phase control
@@ -65,7 +65,7 @@ begin
   -- CtrlOut is toggled when the program start
   -- or when the system is in the CHECK_COMPLETE state and more data is expected.
   ---------------------------
-  CtrlOutToggle: process(clk, reset, ctrlOut_state)
+  CtrlOutToggle: process(clk, reset)
   begin
     if rising_edge(clk) then
       if reset = '1' then
@@ -191,46 +191,47 @@ begin
     end if;
   end process;
 
-  combi_next: process(curr_state, start, edge_detected_ctrlIn, counter, numWords_int)
+  combi_next: process(curr_state, start, edge_detected_ctrlIn)
   begin
     case curr_state is
-    -- Reset and check for start from command processor
-    when IDLE => 
-      if start = '1' then
-        next_state <= PROCESS_DATA;
-      else
-        next_state <= IDLE;
-      end if;
-
-    -- Processing coming bytes finding peak and storing values in DataResults
-    when PROCESS_DATA => 
-      if edge_detected_ctrlIn = '1' then
-        if start = '1' or counter = 1 then
-          next_state <= FILL_DATA;
-        else
-          next_state <= PROCESS_DATA; -- Continue processing if no start signal is received
-        end if;
-      else
-        next_state <= PROCESS_DATA;
-      end if;
-
-    when FILL_DATA => 
-      next_state <= CHECK_COMPLETE;
-    
-    -- Check if should do another byte or stop  
-    when CHECK_COMPLETE =>
-      if counter < numWords_int then
+      -- Reset and check for start from command processor
+      when IDLE => 
+        if start = '1' then
           next_state <= PROCESS_DATA;
-      else
+        else
+          next_state <= IDLE;
+        end if;
+
+      -- Processing coming bytes finding peak and storing values in DataResults
+      when PROCESS_DATA => 
+        if edge_detected_ctrlIn = '1' then
+          next_state <= WAIT_CMDP;
+        else
+          next_state <= PROCESS_DATA;
+        end if;
+
+      -- Waiting for start from command processor or first run through  
+      when WAIT_CMDP =>
+        if start = '1' or counter = 1 then
+            next_state <= CHECK_COMPLETE;
+        else 
+            next_state <= WAIT_CMDP;
+        end if;
+      
+      -- Check if should do another byte or stop  
+      when CHECK_COMPLETE =>
+        if counter < numWords_int then
+            next_state <= PROCESS_DATA;
+        else
+          next_state <= IDLE;
+        end if;
+      
+      when others =>
         next_state <= IDLE;
-      end if;
-    
-    when others =>
-      next_state <= IDLE;
-  end case;
+    end case;
   end process;
 
-  combi_out: process(curr_state, start, edge_detected_ctrlIn, counter, numWords_int)
+  combi_out: process(curr_state, start, edge_detected_ctrlIn)
   begin
     en_count <= FALSE;
     reset_count <= FALSE;
@@ -256,7 +257,7 @@ begin
           en_peak_detection <= TRUE;
         end if;
       
-      when FILL_DATA =>
+      when WAIT_CMDP =>
         en_data <= '1';
       
       -- Check if should do another byte or stop  
