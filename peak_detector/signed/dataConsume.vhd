@@ -49,10 +49,10 @@ begin
   -- Detecting edge on ctrlIn
   edge_detected_ctrlIn <= ctrlIn XOR prev_ctrlIn;
   
-  ---------------------------
+  ------------------------------------------------------
   --  Edge detection
   --  store previous value of ctrlIn to detect edge 
-  ---------------------------
+  ------------------------------------------------------
   CtrlInEdgeDetect: process(clk)
   begin
     if rising_edge(clk) then
@@ -60,11 +60,11 @@ begin
     end if;
   end process;
 
-  ---------------------------
+  ------------------------------------------------------
   --  Toggle control output
   -- CtrlOut is toggled when the program start
   -- or when the system is in the CHECK_COMPLETE state and more data is expected.
-  ---------------------------
+  ------------------------------------------------------
   CtrlOutToggle: process(clk, reset, ctrlOut_state)
   begin
     if rising_edge(clk) then
@@ -77,10 +77,26 @@ begin
     ctrlOut <= ctrlOut_state;
   end process;
 
-  ----------------------------
-  --  Byte output
-  --  keep sending the bytes we read to the command processor
-  ---------------------------
+
+  --------------------------------------
+  --  Number of words BCD to interger 
+  --------------------------------------
+  BCDtoINT: process(clk)
+  begin
+    if rising_edge(clk) then
+      if reset = '1' then
+        numWords_int <= 0;
+      elsif en_bcd_to_int = TRUE then
+        numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
+                        to_integer(unsigned(numWords_bcd(1))) * 10 + 
+                        to_integer(unsigned(numWords_bcd(0))); 
+      end if;
+    end if;
+  end process;
+
+  --------------------------------------
+  --  Output byte after processing it
+  --------------------------------------
   ByteOutput: process(clk)
   begin
     if rising_edge(clk) then
@@ -92,6 +108,10 @@ begin
     end if;
   end process;
 
+  --------------------------------------
+  --  Update counter of how many words we have read
+  --  from the data generator
+  --------------------------------------
   UpdateCounter: process(clk)
   begin
    if rising_edge(clk) then
@@ -103,6 +123,9 @@ begin
     end if;
   end process; 
 
+  --------------------------------------
+  --  Peak detection algorithm
+  --------------------------------------
   PeakDetection: process(clk)
   begin
    if rising_edge(clk) then
@@ -164,19 +187,6 @@ begin
   end process;
 
 
-  BCDtoINT: process(clk)
-  begin
-    if rising_edge(clk) then
-      if reset = '1' then
-        numWords_int <= 0;
-      elsif en_bcd_to_int = TRUE then
-        numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
-                        to_integer(unsigned(numWords_bcd(1))) * 10 + 
-                        to_integer(unsigned(numWords_bcd(0))); 
-      end if;
-    end if;
-  end process;
-
   --------------------------------
   --  State Machine Transitions
   --------------------------------
@@ -191,7 +201,10 @@ begin
     end if;
   end process;
 
-  combi_next: process(curr_state, start, edge_detected_ctrlIn, counter, numWords_int)
+  --------------------------------------
+  --  Combinatorial logic for state machine
+  --------------------------------------
+  CombiNext: process(curr_state, start, edge_detected_ctrlIn, counter, numWords_int)
   begin
     case curr_state is
     -- Reset and check for start from command processor
@@ -230,7 +243,10 @@ begin
   end case;
   end process;
 
-  combi_out: process(curr_state, start, edge_detected_ctrlIn, counter, numWords_int)
+  --------------------------------------
+  --  Combinatorial for state machine outputs
+  --------------------------------------
+  CombiOut: process(curr_state, start, edge_detected_ctrlIn, counter, numWords_int)
   begin
     en_count <= FALSE;
     reset_count <= FALSE;
