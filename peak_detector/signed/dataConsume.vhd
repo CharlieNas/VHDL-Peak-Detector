@@ -114,22 +114,22 @@ begin
     seqDone <= '0';
     
     case curr_state is
-      when IDLE =>  -- Remain idle until start signal goes high, synchronising us with command processor
-        en_reset <= TRUE;
+      when IDLE =>  
+        en_reset <= TRUE; -- reset signals, fixing bug for board reset button
         if start = '1' then
           en_bcd_to_int <= TRUE; -- BCDtoINT process
         end if;
 
-      when PROCESS_DATA => -- Processing incoming bytes, finding peak and storing values in DataResults
+      when PROCESS_DATA => 
         if edge_detected_ctrlIn = '1' then
-          en_counter <= TRUE;
-          en_peak_detection <= TRUE;  -- Peak Detection process
+          en_counter <= TRUE; -- UpdateCounter Process
+          en_peak_detection <= TRUE;  -- PeakDetection process
         end if;
       
-      when WAIT_CMDP => -- Waiting for start from command processor or first run through
-        en_data <= TRUE;
+      when WAIT_CMDP => 
+        en_data <= TRUE; -- ByteOutput process
       
-      when CHECK_COMPLETE => -- If we haven't reached the number of words we need to process, keep going  
+      when CHECK_COMPLETE =>  
         dataReady <= '1'; 
         if counter >= numWords_int then
           seqDone <= '1';
