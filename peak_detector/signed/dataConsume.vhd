@@ -5,18 +5,18 @@ use work.common_pack.all;
 
 entity dataConsume is
   port(
-    clk:        in std_logic;
-    reset:      in std_logic;
-    start:      in std_logic;
+    clk:          in std_logic;
+    reset:        in std_logic;
+    start:        in std_logic;
     numWords_bcd: in BCD_ARRAY_TYPE(2 downto 0);
-    data:       in std_logic_vector(7 downto 0);
-    ctrlIn:     in std_logic;
-    ctrlOut:    out std_logic;
-    dataReady:  out std_logic;
-    seqDone:    out std_logic;
-    byte:       out std_logic_vector(7 downto 0);
-    maxIndex:   out BCD_ARRAY_TYPE(2 downto 0);
-    dataResults: out CHAR_ARRAY_TYPE(0 to 6)
+    data:         in std_logic_vector(7 downto 0);
+    ctrlIn:       in std_logic;
+    ctrlOut:      out std_logic;
+    dataReady:    out std_logic;
+    seqDone:      out std_logic;
+    byte:         out std_logic_vector(7 downto 0);
+    maxIndex:     out BCD_ARRAY_TYPE(2 downto 0);
+    dataResults:  out CHAR_ARRAY_TYPE(0 to 6)
   );
 end dataConsume;
 
@@ -65,7 +65,7 @@ begin
   -- CtrlOut is toggled when the program start
   -- or when the system is in the CHECK_COMPLETE state and more data is expected.
   ---------------------------
-  CtrlOutToggle: process(clk, reset)
+  CtrlOutToggle: process(clk, reset, ctrlOut_state)
   begin
     if rising_edge(clk) then
       if reset = '1' then
@@ -191,7 +191,7 @@ begin
     end if;
   end process;
 
-  combi_next: process(curr_state, start, edge_detected_ctrlIn)
+  combi_next: process(curr_state, start, edge_detected_ctrlIn, counter, numWords_int)
   begin
     case curr_state is
       -- Reset and check for start from command processor
@@ -231,7 +231,7 @@ begin
     end case;
   end process;
 
-  combi_out: process(curr_state, start, edge_detected_ctrlIn)
+  combi_out: process(curr_state, start, edge_detected_ctrlIn, counter, numWords_int)
   begin
     en_count <= FALSE;
     reset_count <= FALSE;
