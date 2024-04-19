@@ -25,23 +25,24 @@ architecture Behavioral of dataConsume is
   -- define custom types for use within architecture
   type state_type is (IDLE, PROCESS_DATA, WAIT_CMDP, CHECK_COMPLETE);
   type signed_array is array (integer range <>) of signed(7 downto 0);
-  -- signals for managing state transitions and two phase protocol logic
+  -- signals for managing state transitions
   signal curr_state, next_state: state_type;
+  -- signals for two phase protocol logic
   signal prev_ctrlIn, ctrlOut_state: std_logic := '0';
   signal edge_detected_ctrlIn: std_logic := '0';
-  signal en_data: std_logic := '0';
   -- signals for counter and numWords as integer
   signal numWords_int: integer := 0;
   signal counter: integer := 0;
   -- signals for the peak detection algorithm
   signal peak_value: signed(7 downto 0) := (others => '0');
-  signal update_next_values: integer := 0;
   signal lastThreeBytes: signed_array(0 to 2) := (others => (others => '0'));
-  -- enable signals
-  signal en_count, reset_count: boolean := TRUE;
+  signal update_next_values: integer := 0;
+  -- enable signals and counter reset
+  signal en_counter: boolean := FALSE;
   signal en_bcd_to_int: boolean := FALSE;
   signal en_peak_detection: boolean := FALSE;
-  signal en_reset: boolean := FALSE;
+  signal en_data: boolean := FALSE;
+  signal en_reset: boolean := TRUE;
 
 begin
   --------------------------------------------------------- STATE MACHINE ---------------------------------------------------------
@@ -104,31 +105,29 @@ begin
   combi_out: process(curr_state, start, edge_detected_ctrlIn, counter, numWords_int)
   begin
     -- Reset signals to avoid latches
-    en_count <= FALSE;
-    en_bcd_to_int <= FALSE;
-    en_peak_detection <= FALSE;
     en_reset <= FALSE;
-    en_data <= '0';
-    reset_count <= FALSE;
+    en_bcd_to_int <= FALSE;
+    en_counter <= FALSE;
+    en_peak_detection <= FALSE;
+    en_data <= FALSE;
     dataReady <= '0';
     seqDone <= '0';
     
     case curr_state is
       when IDLE =>  -- Remain idle until start signal goes high, synchronising us with command processor
         en_reset <= TRUE;
-        reset_count <= TRUE;
         if start = '1' then
           en_bcd_to_int <= TRUE; -- BCDtoINT process
         end if;
 
       when PROCESS_DATA => -- Processing incoming bytes, finding peak and storing values in DataResults
         if edge_detected_ctrlIn = '1' then
-          en_count <= TRUE;
+          en_counter <= TRUE;
           en_peak_detection <= TRUE;  -- Peak Detection process
         end if;
       
       when WAIT_CMDP => -- Waiting for start from command processor or first run through
-        en_data <= '1';
+        en_data <= TRUE;
       
       when CHECK_COMPLETE => -- If we haven't reached the number of words we need to process, keep going  
         dataReady <= '1'; 
@@ -176,9 +175,9 @@ begin
   UpdateCounter: process(clk)
   begin
    if rising_edge(clk) then
-      if reset_count = TRUE then
+      if en_reset then
         counter <= 0;
-      elsif en_count = TRUE then
+      elsif en_counter then
         counter <= counter + 1;
       end if;
     end if;
@@ -192,7 +191,7 @@ begin
     if rising_edge(clk) then
       if reset = '1' then
         numWords_int <= 0;
-      elsif en_bcd_to_int = TRUE then
+      elsif en_bcd_to_int then
         numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
                         to_integer(unsigned(numWords_bcd(1))) * 10 + 
                         to_integer(unsigned(numWords_bcd(0))); 
@@ -208,7 +207,7 @@ begin
     if rising_edge(clk) then
       if reset = '1' then 
         byte <= "00000000";
-      elsif en_data = '1' THEN
+      elsif en_data THEN
         byte <= data;
       end if;
     end if;
@@ -224,7 +223,7 @@ begin
         lastThreeBytes <= (others => (others => '0'));
         maxIndex <= (others => (others => '0'));
         dataResults <= (others => (others => '0'));
-      elsif en_peak_detection = TRUE then
+      elsif en_peak_detection then
         -- 1. Update dataResults with next three values if the peak was recently found.
         --    We use update_next_values to keep track of how many values we still need to store after the peak
         if update_next_values > 0 then
