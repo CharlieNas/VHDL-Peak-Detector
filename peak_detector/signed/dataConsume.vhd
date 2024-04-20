@@ -184,7 +184,7 @@ begin
   end process; 
 
   ----------------------------
-  -- keep sending the bytes we read to the command processor
+  -- converts numWords_bcd input signal from BCD to integer for comparison against counter
   ----------------------------
   BCDtoINT: process(clk)
   begin
