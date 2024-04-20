@@ -225,46 +225,30 @@ begin
         dataResults <= (others => (others => '0'));
       elsif en_peak_detection then
         -- 1. Update dataResults with next three values if the peak was recently found.
-        --    We use update_next_values to keep track of how many values we still need to store after the peak
+        --    update_next_values tracks how many values we still need to store after the peak
         if update_next_values > 0 then
-          case update_next_values is
-              when 3 =>
-                  dataResults(2) <= std_logic_vector(signed(data));
-              when 2 =>
-                  dataResults(1) <= std_logic_vector(signed(data));
-              when 1 =>
-                  dataResults(0) <= std_logic_vector(signed(data));
-              when others =>
-                  null;
-          end case;
+          dataResults(update_next_values - 1) <= std_logic_vector(signed(data));
           update_next_values <= update_next_values - 1;
         end if;
 
         -- 2. Peak detection.
         --    If it's the first byte or the current byte is greater than past peak value
         if counter = 0 or signed(data) > peak_value then
-            peak_value <= signed(data);
-            -- Update max index which in this case would be the same number as the counter
-            maxIndex(0) <= std_logic_vector(to_unsigned(counter mod 10, 4));
+            peak_value <= signed(data); -- update peak value for future comparison
+            maxIndex(0) <= std_logic_vector(to_unsigned(counter mod 10, 4)); -- Update max index using counter
             maxIndex(1) <= std_logic_vector(to_unsigned((counter / 10) mod 10, 4));
             maxIndex(2) <= std_logic_vector(to_unsigned((counter / 100) mod 10, 4));
-            -- Update the values before the peak
-            dataResults(6) <= std_logic_vector(lastThreeBytes(2));
+            dataResults(6) <= std_logic_vector(lastThreeBytes(2));-- Update the three values before the peak
             dataResults(5) <= std_logic_vector(lastThreeBytes(1));
             dataResults(4) <= std_logic_vector(lastThreeBytes(0));
-            -- Update the peak value
-            dataResults(3) <= std_logic_vector(signed(data));
-            -- Reset values after the peak
-            dataResults(2) <= (others => '0');
+            dataResults(3) <= std_logic_vector(signed(data)); -- Update the peak value
+            dataResults(2) <= (others => '0'); -- Reset the three values after the peak
             dataResults(1) <= (others => '0');
-            dataResults(0) <= (others => '0');
-            -- Update update_next_values to indicate that we need to store the next three values
-            -- in the following iterations
-            update_next_values <= 3;
+            dataResults(0) <= (others => '0'); 
+            update_next_values <= 3; -- indicating that we need to store the next three values
         end if;
 
-        -- 3. Always keep track of the last three bytes to store them in the dataResults
-        -- when the peak is found
+        -- 3. Always keep track of the last three bytes, so we can update dataResults(6 downto 4) when peak found
         lastThreeBytes(2) <= lastThreeBytes(1);
         lastThreeBytes(1) <= lastThreeBytes(0);
         lastThreeBytes(0) <= signed(data);
