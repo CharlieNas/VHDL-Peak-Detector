@@ -38,10 +38,10 @@ architecture Behavioral of dataConsume is
   signal lastThreeBytes: signed_array(0 to 2) := (others => (others => '0'));
   signal update_next_values: integer := 0;
   -- enable signals and counter reset
-  signal en_counter: boolean := FALSE;
-  signal en_bcd_to_int: boolean := FALSE;
-  signal en_peak_detection: boolean := FALSE;
-  signal en_data: boolean := FALSE;
+  signal en_updateCounter: boolean := FALSE;
+  signal en_bcdToInt: boolean := FALSE;
+  signal en_peakDetection: boolean := FALSE;
+  signal en_byteOutput: boolean := FALSE;
   signal en_reset: boolean := TRUE;
 
 begin
@@ -106,10 +106,10 @@ begin
   begin
     -- Reset signals to avoid latches
     en_reset <= FALSE;
-    en_bcd_to_int <= FALSE;
-    en_counter <= FALSE;
-    en_peak_detection <= FALSE;
-    en_data <= FALSE;
+    en_bcdToInt <= FALSE;
+    en_updateCounter <= FALSE;
+    en_peakDetection <= FALSE;
+    en_byteOutput <= FALSE;
     dataReady <= '0';
     seqDone <= '0';
     
@@ -117,17 +117,17 @@ begin
       when IDLE =>  
         en_reset <= TRUE; -- reset signals, fixing bug for board reset button
         if start = '1' then
-          en_bcd_to_int <= TRUE; -- BCDtoINT process
+          en_bcdToInt <= TRUE; -- BCDtoINT process
         end if;
 
       when PROCESS_DATA => 
         if edge_detected_ctrlIn = '1' then
-          en_counter <= TRUE; -- UpdateCounter Process
-          en_peak_detection <= TRUE;  -- PeakDetection process
+          en_updateCounter <= TRUE; -- UpdateCounter Process
+          en_peakDetection <= TRUE;  -- PeakDetection process
         end if;
       
       when WAIT_CMDP => 
-        en_data <= TRUE; -- ByteOutput process
+        en_byteOutput <= TRUE; -- ByteOutput process
       
       when CHECK_COMPLETE =>  
         dataReady <= '1'; 
@@ -177,7 +177,7 @@ begin
    if rising_edge(clk) then
       if en_reset then
         counter <= 0;
-      elsif en_counter then
+      elsif en_updateCounter then
         counter <= counter + 1;
       end if;
     end if;
@@ -191,7 +191,7 @@ begin
     if rising_edge(clk) then
       if reset = '1' then
         numWords_int <= 0;
-      elsif en_bcd_to_int then
+      elsif en_bcdToInt then
         numWords_int <= to_integer(unsigned(numWords_bcd(2))) * 100 +
                         to_integer(unsigned(numWords_bcd(1))) * 10 + 
                         to_integer(unsigned(numWords_bcd(0))); 
@@ -207,7 +207,7 @@ begin
     if rising_edge(clk) then
       if reset = '1' then 
         byte <= "00000000";
-      elsif en_data THEN
+      elsif en_byteOutput THEN
         byte <= data;
       end if;
     end if;
@@ -223,11 +223,11 @@ begin
         lastThreeBytes <= (others => (others => '0'));
         maxIndex <= (others => (others => '0'));
         dataResults <= (others => (others => '0'));
-      elsif en_peak_detection then
+      elsif en_peakDetection then
         -- 1. Update dataResults with next three values if the peak was recently found.
         --    update_next_values tracks how many values we still need to store after the peak
         if update_next_values > 0 then
-          dataResults(update_next_values - 1) <= std_logic_vector(signed(data));
+          dataResults(update_next_values - 1) <= std_logic_vector(signed(data)); -- Update next dataResults values
           update_next_values <= update_next_values - 1;
         end if;
 
