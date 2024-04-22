@@ -227,7 +227,7 @@ begin
         -- 1. Update dataResults with next three values if the peak was recently found.
         --    update_next_values tracks how many values we still need to store after the peak
         if update_next_values > 0 then
-          dataResults(update_next_values - 1) <= std_logic_vector(signed(data)); -- Update next dataResults values
+          dataResults(update_next_values - 1) <= std_logic_vector(signed(data)); -- Update next dataResults value
           update_next_values <= update_next_values - 1;
         end if;
 
