@@ -271,7 +271,7 @@ BEGIN
                 nextState <= HEX2;
             WHEN HEX2 => -- Wait for printing for second Hex Digit
                 IF finished ='1' THEN
-                    IF seq_Available ='1' THEN ----------------------------------------------------- 
+                    IF seq_Available ='1' THEN
                         nextState <= WAIT_CARRIAGE2;
                     ELSE
                         nextState <= PREP_SPACE;
