@@ -42,5 +42,5 @@ A VHDL-based system for detecting and storing peak values, synthesised on an Art
 
 ## Project Documentation
 
-* 📄 **[Project Report](path/to/Group_12_reports.pdf)**: Comprehensive documentation of the design, implementation, and testing process.
+* 📄 **Project Report**: Comprehensive documentation of the design, implementation, and testing process.
 * 📚 **Guidelines.pdf**: University-provided guide/documentation for the project.
